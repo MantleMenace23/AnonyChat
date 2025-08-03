@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Join Chat</title>
+</head>
+<body>
+  <h1>Join a Chat Room</h1>
+  <input id="name" placeholder="Enter your name" autocomplete="off"><br><br>
+  <input id="room" placeholder="Enter room code" autocomplete="off"><br><br>
+  <button onclick="join()">Join</button>
+
+  <script>
+    function join() {
+      const name = document.getElementById('name').value.trim();
+      const room = document.getElementById('room').value.trim();
+      if (!name || !room) return alert("Name and Room are required.");
+      window.location.href = `chat.html?room=${room}&name=${name}`;
+    }
+  </script>
+</body>
+</html>

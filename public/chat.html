@@ -1,14 +1,19 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Chat Room</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <h1 id="roomName">Chat</h1>
+
   <div id="chatbox"></div>
+
   <div id="inputArea">
     <input id="msg" autocomplete="off" placeholder="Type your message...">
+    <input type="file" id="fileInput" hidden>
+    <button id="fileBtn">📎</button>
     <button onclick="send()">Send</button>
   </div>
 

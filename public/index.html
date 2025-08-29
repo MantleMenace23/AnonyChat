@@ -1,21 +1,41 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-  <title>Join Chat</title>
+  <meta charset="utf-8" />
+  <title>AnonyChat — with files</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <h1>Join a Chat Room</h1>
-  <input id="name" placeholder="Enter your name" autocomplete="off"><br><br>
-  <input id="room" placeholder="Enter room code" autocomplete="off"><br><br>
-  <button onclick="join()">Join</button>
+  <div class="app">
+    <header>
+      <h1>AnonyChat</h1>
+      <span class="sub">Image & File sharing enabled</span>
+    </header>
 
-  <script>
-    function join() {
-      const name = document.getElementById('name').value.trim();
-      const room = document.getElementById('room').value.trim();
-      if (!name || !room) return alert("Name and Room are required.");
-      window.location.href = `chat.html?room=${room}&name=${name}`;
-    }
-  </script>
+    <main id="messages" aria-live="polite"></main>
+
+    <form id="chatForm" autocomplete="off">
+      <input id="messageInput" type="text" placeholder="Type a message…" maxlength="5000" />
+      <label class="file-btn">
+        <input id="fileInput" type="file" hidden />
+        📎
+      </label>
+      <button id="sendBtn" type="submit">Send</button>
+    </form>
+
+    <div id="uploadPreview" class="hidden">
+      <div class="preview-row">
+        <span id="previewName"></span>
+        <button id="cancelUpload" type="button" title="Clear">✖</button>
+      </div>
+      <img id="previewImage" class="hidden" alt="Preview" />
+      <progress id="uploadProgress" value="0" max="100"></progress>
+      <button id="uploadBtn" type="button">Upload & Send</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/client.js"></script>
 </body>
 </html>

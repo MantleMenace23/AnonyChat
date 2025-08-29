@@ -1,38 +1,78 @@
 body {
   font-family: Arial, sans-serif;
-  padding: 20px;
+  background: #f4f4f9;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+h1 {
+  margin: 0;
+  padding: 15px;
+  background: #333;
+  color: white;
+  text-align: center;
 }
 
 #chatbox {
-  border: 1px solid #ccc;
-  height: 400px;
-  overflow-y: auto;
+  flex: 1;
   padding: 10px;
-  margin-bottom: 10px;
-  background: #f9f9f9;
+  overflow-y: auto;
+  background: white;
+}
+
+.bubble {
+  margin: 5px 0;
+  padding: 10px;
+  border-radius: 10px;
+  background: #e0e0e0;
+  max-width: 70%;
+  word-wrap: break-word;
+}
+
+.bubble.me {
+  background: #4CAF50;
+  color: white;
+  margin-left: auto;
+}
+
+.bubble strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.bubble img {
+  max-width: 200px;
+  border-radius: 8px;
+  display: block;
+  margin-top: 5px;
 }
 
 #inputArea {
   display: flex;
-  gap: 10px;
+  padding: 10px;
+  background: #ddd;
+  gap: 5px;
 }
 
 #msg {
-  flex-grow: 1;
-  padding: 8px;
+  flex: 1;
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #aaa;
 }
 
-.bubble {
-  background: #e0e0e0;
-  padding: 8px 12px;
-  margin: 5px;
-  border-radius: 15px;
-  max-width: 70%;
-  clear: both;
+button {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  background: #333;
+  color: white;
+  cursor: pointer;
 }
 
-.bubble.me {
-  background: #90ee90;
-  align-self: flex-end;
-  margin-left: auto;
+button:hover {
+  background: #555;
 }

@@ -14,7 +14,8 @@ let roomCode = "";
 let name = "";
 
 // Join button
-joinBtn.addEventListener("click", () => {
+joinBtn.addEventListener("click", joinRoom);
+function joinRoom() {
   name = nameInput.value.trim();
   roomCode = roomInput.value.trim();
   if (!name || !roomCode) return;
@@ -24,15 +25,29 @@ joinBtn.addEventListener("click", () => {
   loginDiv.classList.add("hidden");
   chatDiv.classList.remove("hidden");
   roomTitle.textContent = `Room: ${roomCode}`;
-});
+  messageInput.focus(); // focus input immediately
+}
 
-// Send message
-sendBtn.addEventListener("click", () => {
+// Send button
+sendBtn.addEventListener("click", sendMessage);
+function sendMessage() {
   const msg = messageInput.value.trim();
   if (!msg) return;
 
   socket.emit("chatMessage", { roomCode, msg });
   messageInput.value = "";
+  messageInput.focus(); // keep focus after sending
+}
+
+// Enter key behavior
+messageInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") sendMessage();
+});
+roomInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") joinRoom();
+});
+nameInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") joinRoom();
 });
 
 // Receive chat history
@@ -51,4 +66,5 @@ function addMessage(sender, text) {
   div.innerHTML = `<span class="sender">${sender}:</span> ${text}`;
   chatBox.appendChild(div);
   chatBox.scrollTop = chatBox.scrollHeight;
+  messageInput.focus(); // keep focus on input
 }

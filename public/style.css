@@ -21,25 +21,29 @@ body {
 input {
   display: block;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   margin: 10px 0;
   padding: 10px;
   border: none;
   border-radius: 8px;
+  font-size: 14px;
 }
 
 button {
   width: 100%;
   padding: 10px;
-  background: #4CAF50;
   border: none;
   border-radius: 8px;
   color: white;
   font-size: 16px;
   cursor: pointer;
+  background: linear-gradient(90deg, #4facfe, #00f2fe); /* cool blue gradient */
+  transition: all 0.3s ease;
 }
 
 button:hover {
-  background: #45a049;
+  filter: brightness(1.1);
 }
 
 .hidden {

@@ -4,46 +4,73 @@
   <meta charset="utf-8" />
   <title>AnonyChat — Join</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="AnonyChat - create or join a room and chat with uploads" />
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="join-body">
   <main class="join-card" role="main" aria-labelledby="joinTitle">
     <h1 id="joinTitle" class="join-title">AnonyChat</h1>
 
-    <p class="join-sub">Enter a room code (create one if none exists) and a display name.</p>
+    <p class="join-sub">Create a room or join one. Provide a display name and a room code.</p>
 
-    <form id="joinForm" class="join-form" autocomplete="off">
-      <label class="visually-hidden" for="nameInput">Your name</label>
-      <input id="nameInput" name="name" type="text" placeholder="Your name" maxlength="32" required>
+    <form id="joinForm" class="join-form" autocomplete="off" novalidate>
+      <label class="visually-hidden" for="nameInput">Your display name</label>
+      <input id="nameInput" name="name" type="text" placeholder="Your display name" maxlength="48" required aria-required="true">
 
       <label class="visually-hidden" for="roomInput">Room code</label>
-      <input id="roomInput" name="room" type="text" placeholder="Room code (letters/numbers)" maxlength="64" required>
+      <input id="roomInput" name="room" type="text" placeholder="Room code (e.g. Party123)" maxlength="64" required aria-required="true">
 
       <div class="join-actions">
-        <button id="joinBtn" type="submit" class="btn-primary">Join Room</button>
+        <button id="joinBtn" type="submit" class="btn-primary" aria-label="Join room">Join Room</button>
       </div>
+
+      <p id="joinError" class="form-error" role="status" aria-live="polite" hidden></p>
     </form>
 
-    <p class="join-note">Tip: Use a short code like <code>party123</code> or a name friends can remember.</p>
+    <section class="join-help">
+      <p class="join-note">Tip: pick a short room code your friends will remember. Names are public in the room.</p>
+    </section>
   </main>
 
   <script>
-    // Redirect to chat.html with query params on submit
-    document.getElementById('joinForm').addEventListener('submit', function (e) {
-      e.preventDefault();
-      const name = document.getElementById('nameInput').value.trim();
-      const room = document.getElementById('roomInput').value.trim();
-      if (!name || !room) {
-        alert('Please enter both a name and a room code.');
-        return;
-      }
-      // Encode and redirect
-      const url = `chat.html?name=${encodeURIComponent(name)}&room=${encodeURIComponent(room)}`;
-      window.location.href = url;
-    });
+    // Client-side join logic:
+    // - Validate inputs
+    // - Save to localStorage for convenience (used by chat.html)
+    // - Redirect to chat.html
+    (function () {
+      const joinForm = document.getElementById('joinForm');
+      const nameInput = document.getElementById('nameInput');
+      const roomInput = document.getElementById('roomInput');
+      const joinError = document.getElementById('joinError');
 
-    // Accessibility helper: focus name field on load
-    document.getElementById('nameInput').focus();
+      // Focus name
+      nameInput.focus();
+
+      joinForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        joinError.hidden = true;
+        const name = nameInput.value.trim();
+        const room = roomInput.value.trim();
+
+        if (!name || !room) {
+          joinError.textContent = 'Please enter both a display name and a room code.';
+          joinError.hidden = false;
+          return;
+        }
+
+        // Save to local storage so chat.html can read them
+        try {
+          localStorage.setItem('anonychat_name', name);
+          localStorage.setItem('anonychat_room', room);
+        } catch (err) {
+          // ignore storage errors
+        }
+
+        // Build an encoded URL (chat.html will read from localStorage as a fallback)
+        const url = `chat.html?name=${encodeURIComponent(name)}&room=${encodeURIComponent(room)}`;
+        window.location.href = url;
+      });
+    })();
   </script>
 </body>
 </html>

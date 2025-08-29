@@ -2,24 +2,46 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AnonyChat</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Lobby / Join Room -->
   <div class="container" id="login">
     <h1>Join a Room</h1>
-    <input type="text" id="nameInput" placeholder="Your name" required>
-    <input type="text" id="roomInput" placeholder="Room code" required>
+    <input type="text" id="nameInput" placeholder="Your name" autocomplete="off" required>
+    <input type="text" id="roomInput" placeholder="Room code" autocomplete="off" required>
     <button id="joinBtn">Join</button>
   </div>
 
+  <!-- Chat Area -->
   <div class="container chat hidden" id="chat">
     <h2 id="roomTitle"></h2>
+
     <div id="chatBox"></div>
-<input type="file" id="fileInput">
-<button id="sendFileBtn">Send File</button>
-    <input type="text" id="messageInput" placeholder="Type a message">
-    <button id="sendBtn">Send</button>
+
+    <div class="chat-controls">
+      <input type="text" id="messageInput" placeholder="Type a message" autocomplete="off">
+      <button id="sendBtn">Send</button>
+      <input type="file" id="fileInput">
+      <button id="sendFileBtn">Send File</button>
+
+      <!-- Color selector -->
+      <label for="colorSelect">Text color:</label>
+      <select id="colorSelect">
+        <option value="#ffcc00" style="color:#ffcc00;">Yellow</option>
+        <option value="#00ccff" style="color:#00ccff;">Cyan</option>
+        <option value="#ff4444" style="color:#ff4444;">Red</option>
+        <option value="#44ff44" style="color:#44ff44;">Green</option>
+        <option value="#ff88ff" style="color:#ff88ff;">Pink</option>
+        <option value="#ffaa00" style="color:#ffaa00;">Orange</option>
+        <option value="#8888ff" style="color:#8888ff;">Purple</option>
+        <option value="#ffffff" style="color:#ffffff;">White</option>
+        <option value="#00ff88" style="color:#00ff88;">Mint</option>
+        <option value="#ff00aa" style="color:#ff00aa;">Magenta</option>
+      </select>
+    </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>

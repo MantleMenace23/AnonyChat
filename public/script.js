@@ -1,4 +1,4 @@
-const socket = io(); // auto-connect to current host
+const socket = io();
 
 const loginDiv = document.getElementById("login");
 const chatDiv = document.getElementById("chat");
@@ -11,11 +11,16 @@ const chatBox = document.getElementById("chatBox");
 const roomTitle = document.getElementById("roomTitle");
 const fileInput = document.getElementById("fileInput");
 const sendFileBtn = document.getElementById("sendFileBtn");
+const colorSelect = document.getElementById("colorSelect");
 
 let roomCode = "";
 let name = "";
+let textColor = colorSelect.value;
 
-// ---- Join Room ----
+// Disable autocomplete
+[nameInput, roomInput, messageInput].forEach(input => input.setAttribute("autocomplete", "off"));
+
+// Join room
 joinBtn.addEventListener("click", joinRoom);
 function joinRoom() {
   name = nameInput.value.trim();
@@ -30,18 +35,18 @@ function joinRoom() {
   messageInput.focus();
 }
 
-// ---- Send Chat Message ----
+// Send chat message
 sendBtn.addEventListener("click", sendMessage);
 function sendMessage() {
   const msg = messageInput.value.trim();
   if (!msg) return;
 
-  socket.emit("chatMessage", { roomCode, msg });
+  socket.emit("chatMessage", { roomCode, msg, color: textColor });
   messageInput.value = "";
   messageInput.focus();
 }
 
-// ---- Send File ----
+// Send file
 sendFileBtn.addEventListener("click", async () => {
   if (!fileInput.files.length) return;
 
@@ -52,34 +57,37 @@ sendFileBtn.addEventListener("click", async () => {
   const res = await fetch("/upload", { method: "POST", body: formData });
   const data = await res.json();
 
-  socket.emit("chatMessage", { roomCode, msg: data.url });
+  socket.emit("chatMessage", { roomCode, msg: data.url, color: textColor });
   fileInput.value = "";
 });
 
-// ---- Enter key handling ----
+// Change text color
+colorSelect.addEventListener("change", () => { textColor = colorSelect.value; });
+
+// Enter key handling
 messageInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
 roomInput.addEventListener("keydown", (e) => { if (e.key === "Enter") joinRoom(); });
 nameInput.addEventListener("keydown", (e) => { if (e.key === "Enter") joinRoom(); });
 
-// ---- Receive chat history ----
+// Receive chat history
 socket.on("chatHistory", (messages) => {
   chatBox.innerHTML = "";
-  messages.forEach((message) => addMessage(message.sender, message.text));
+  messages.forEach((message) => addMessage(message.sender, message.text, message.color));
 });
 
-// ---- Receive new messages ----
-socket.on("chatMessage", (message) => addMessage(message.sender, message.text));
+// Receive new messages
+socket.on("chatMessage", (message) => addMessage(message.sender, message.text, message.color));
 
-// ---- Add message to chat ----
-function addMessage(sender, text) {
+// Add message
+function addMessage(sender, text, color) {
   const div = document.createElement("div");
   div.classList.add("message");
+  const appliedColor = color || "#ffcc00";
 
-  // Detect images
   if (text.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
     div.innerHTML = `<span class="sender">${sender}:</span><br><img src="${text}" style="max-width:100%; border-radius:8px;">`;
   } else {
-    div.innerHTML = `<span class="sender">${sender}:</span> <a href="${text}" target="_blank">${text}</a>`;
+    div.innerHTML = `<span class="sender">${sender}:</span> <span style="color:${appliedColor}">${text}</span>`;
   }
 
   chatBox.appendChild(div);

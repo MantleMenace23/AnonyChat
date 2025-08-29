@@ -29,7 +29,6 @@ const upload = multer({
     destination: (req, file, cb) => cb(null, uploadsDir),
     filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname)
   })
-  // No file size limit
 });
 
 // Upload endpoint
@@ -50,7 +49,7 @@ io.on("connection", (socket) => {
     rooms[roomCode].users[socket.id] = name;
     socket.join(roomCode);
 
-    // Send chat history to new user
+    // Send chat history
     socket.emit("chatHistory", rooms[roomCode].messages);
 
     // Announce join
@@ -60,12 +59,12 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Handle chat messages
-  socket.on("chatMessage", ({ roomCode, msg }) => {
+  // Chat messages
+  socket.on("chatMessage", ({ roomCode, msg, color }) => {
     if (!roomCode || !msg || !rooms[roomCode]) return;
 
     const sender = rooms[roomCode].users[socket.id] || "Unknown";
-    const message = { sender, text: msg };
+    const message = { sender, text: msg, color };
 
     rooms[roomCode].messages.push(message);
     io.to(roomCode).emit("chatMessage", message);
@@ -83,7 +82,6 @@ io.on("connection", (socket) => {
           text: `${name} left the room.`
         });
 
-        // Clean up empty rooms
         if (Object.keys(rooms[roomCode].users).length === 0 && rooms[roomCode].messages.length === 0) {
           delete rooms[roomCode];
         }

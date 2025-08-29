@@ -1,32 +1,49 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>AnonyChat</title>
+  <meta charset="utf-8" />
+  <title>AnonyChat — Join</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
-  <!-- Join screen -->
-  <div id="joinScreen">
-    <h1>Welcome to AnonyChat</h1>
-    <input id="username" type="text" placeholder="Enter your name">
-    <input id="room" type="text" placeholder="Enter room code">
-    <button id="joinBtn">Join</button>
-  </div>
+<body class="join-body">
+  <main class="join-card" role="main" aria-labelledby="joinTitle">
+    <h1 id="joinTitle" class="join-title">AnonyChat</h1>
 
-  <!-- Chat screen -->
-  <div id="chatScreen" style="display:none;">
-    <h1 id="roomName"></h1>
-    <div id="chatbox"></div>
-    <div id="inputArea">
-      <input id="msg" autocomplete="off" placeholder="Type a message...">
-      <label for="fileInput" class="upload-icon" title="Upload file">📎</label>
-      <input type="file" id="fileInput" hidden>
-      <button id="sendBtn">Send</button>
-    </div>
-  </div>
+    <p class="join-sub">Enter a room code (create one if none exists) and a display name.</p>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="script.js"></script>
+    <form id="joinForm" class="join-form" autocomplete="off">
+      <label class="visually-hidden" for="nameInput">Your name</label>
+      <input id="nameInput" name="name" type="text" placeholder="Your name" maxlength="32" required>
+
+      <label class="visually-hidden" for="roomInput">Room code</label>
+      <input id="roomInput" name="room" type="text" placeholder="Room code (letters/numbers)" maxlength="64" required>
+
+      <div class="join-actions">
+        <button id="joinBtn" type="submit" class="btn-primary">Join Room</button>
+      </div>
+    </form>
+
+    <p class="join-note">Tip: Use a short code like <code>party123</code> or a name friends can remember.</p>
+  </main>
+
+  <script>
+    // Redirect to chat.html with query params on submit
+    document.getElementById('joinForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const name = document.getElementById('nameInput').value.trim();
+      const room = document.getElementById('roomInput').value.trim();
+      if (!name || !room) {
+        alert('Please enter both a name and a room code.');
+        return;
+      }
+      // Encode and redirect
+      const url = `chat.html?name=${encodeURIComponent(name)}&room=${encodeURIComponent(room)}`;
+      window.location.href = url;
+    });
+
+    // Accessibility helper: focus name field on load
+    document.getElementById('nameInput').focus();
+  </script>
 </body>
 </html>

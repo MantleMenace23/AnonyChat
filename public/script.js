@@ -1,222 +1,233 @@
-// public/script.js
-// Client logic for chat.html + index.html flow
-// Works with the server.js above: joinRoom, emits 'chat', uploads via /upload, then emits 'file'
+/* public/script.js
+   Client logic for chat.html:
+   - Reads ?name=...&room=... from the URL
+   - Connects to socket.io then emits joinRoom({room,name})
+   - Handles chat history and incoming messages ('chat')
+   - Posts uploads to /upload then emits 'file' with returned metadata
+   - Renders text, images, and file links
+*/
 
 (function () {
-  // detect whether we're on index (join) or chat page by checking DOM elements
-  // chat.html is expected to include this script and have the elements used below.
-  // If on index.html, index.html contains its own short script to redirect to chat.html (we provided earlier).
-  const socket = io();
-
-  // ---- Utilities ----
+  // Utilities
   function qs(id) { return document.getElementById(id); }
+  function elt(tag, cls) { const e = document.createElement(tag); if (cls) e.className = cls; return e; }
   function humanSize(bytes) {
     if (!bytes) return '0 B';
     const units = ['B','KB','MB','GB','TB'];
-    let i = 0;
-    let n = Number(bytes);
-    while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+    let i = 0, n = Number(bytes);
+    while (n >= 1024 && i < units.length-1) { n /= 1024; i++; }
     return `${n.toFixed(1)} ${units[i]}`;
   }
+  function escapeText(s) {
+    if (s == null) return '';
+    return String(s)
+      .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+      .replaceAll('"','&quot;').replaceAll("'",'&#39;');
+  }
 
-  // If chatbox element isn't present, nothing to do (this allows same script on multiple pages)
-  const chatbox = qs('chatbox');
-  if (!chatbox) return;
-
-  // Parse username and room from query string (chat.html?username=...&room=...)
-  const params = new URLSearchParams(location.search);
-  const name = params.get('username') || params.get('name') || params.get('user') || 'Anon';
+  // Parse query params
+  const params = new URLSearchParams(window.location.search);
+  const name = params.get('name') || params.get('username') || '';
   const room = params.get('room') || params.get('r') || '';
 
-  if (!room || !name) {
-    alert('Missing room or name. Go back and join a room first.');
-    location.href = '/';
+  // Elements
+  const roomNameEl = qs('roomName');
+  const roomMetaEl = qs('roomMeta');
+  const chatbox = qs('chatbox');
+  const chatForm = qs('chatForm');
+  const msgInput = qs('msg');
+  const fileInput = qs('fileInput');
+  const leaveBtn = qs('leaveBtn');
+
+  // Guard: redirect to join if missing
+  if (!name || !room) {
+    alert('Missing room or name. Redirecting to join screen.');
+    window.location.href = '/';
     throw new Error('Missing room or name');
   }
 
-  // Update UI
-  const roomNameEl = qs('roomName');
-  if (roomNameEl) roomNameEl.innerText = `Room: ${room}`;
+  // Show room in UI
+  roomNameEl.textContent = `Room: ${escapeText(room)}`;
+  roomMetaEl.textContent = `You are: ${escapeText(name)}`;
 
-  // Join server room
-  socket.emit('joinRoom', { room, name });
+  // Connect socket (connect first, then joinRoom)
+  const socket = io();
 
-  // ---- Socket event handlers ----
-  // get existing history
+  // Join after connect
+  socket.on('connect', () => {
+    socket.emit('joinRoom', { room, name });
+  });
+
+  // Chat history (array of messages)
   socket.on('chatHistory', (messages) => {
     chatbox.innerHTML = '';
-    messages.forEach(addMessageToDOM);
+    if (Array.isArray(messages)) {
+      messages.forEach(renderMessage);
+      chatbox.scrollTop = chatbox.scrollHeight;
+    }
+  });
+
+  // Incoming chat events
+  socket.on('chat', (msg) => {
+    renderMessage(msg);
     chatbox.scrollTop = chatbox.scrollHeight;
   });
 
-  // new incoming chat message (either text or file)
-  socket.on('chat', (msg) => {
-    addMessageToDOM(msg);
-  });
-
-  // optional events
+  // Optional small helpers
   socket.on('full', () => {
     alert('Room is full.');
-    location.href = '/';
+    window.location.href = '/';
   });
   socket.on('joinError', (obj) => {
-    alert('Could not join room: ' + (obj && obj.error ? obj.error : 'Unknown error'));
-    location.href = '/';
+    alert('Join error: ' + (obj && obj.error ? obj.error : 'Unknown'));
+    window.location.href = '/';
+  });
+  socket.on('errorMessage', (txt) => {
+    console.warn('Server:', txt);
   });
 
-  // ---- Sending text ----
-  const msgInput = qs('msg');
-  const chatForm = qs('chatForm');
-  if (chatForm) {
-    chatForm.addEventListener('submit', (ev) => {
-      ev.preventDefault();
-      const text = msgInput.value.trim();
-      if (!text) return;
-      socket.emit('chat', text);
-      msgInput.value = '';
-      // optimistic local echo is handled by server broadcasting back
-    });
-  }
+  // Leave button
+  leaveBtn.addEventListener('click', () => {
+    // quick disconnect and go home
+    socket.disconnect();
+    window.location.href = '/';
+  });
 
-  // allow Enter to send (already handled by form submit), but keep for safety
-  if (msgInput) {
-    msgInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        if (chatForm) chatForm.requestSubmit();
-      }
-    });
-  }
+  // Render message helper
+  function renderMessage(msg) {
+    // message shapes:
+    // text: { id, type:'text', name, text, ts }
+    // file: { id, type:'file', name, file:{url, originalName, size, mime}, ts }
+    // System messages may be type:'text' with name 'System'
 
-  // ---- File upload flow ----
-  const fileInput = qs('fileInput');
-  const fileLabel = document.querySelector('.file-label');
+    const wrap = elt('article', 'message');
+    // mark self
+    if (msg && msg.name === name) wrap.classList.add('self');
 
-  if (fileLabel && fileInput) {
-    // when user clicks the label, fileInput will open because label is for=fileInput
-    fileInput.addEventListener('change', async (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-
-      // optional: brief client-side size/type checks
-      const maxBytes = (10 * 1024 * 1024); // keep in sync with server MAX_FILE_MB
-      if (file.size > maxBytes) {
-        alert(`File too large. Max is ${humanSize(maxBytes)}.`);
-        fileInput.value = '';
-        return;
-      }
-
-      // Build FormData and POST to /upload
-      const fd = new FormData();
-      fd.append('file', file);
-      try {
-        // show a simple uploading indicator on the file label
-        const prevLabel = fileLabel.innerText;
-        fileLabel.innerText = 'Uploading...';
-
-        const res = await fetch('/upload', { method: 'POST', body: fd });
-        if (!res.ok) {
-          throw new Error('Upload failed: ' + res.status);
-        }
-        const data = await res.json();
-        // data: { url, filename, originalName, size, mime }
-        // emit to socket so server will broadcast a file message to the room
-        socket.emit('file', {
-          url: data.url,
-          originalName: data.originalName || data.filename || file.name,
-          size: data.size || file.size,
-          mime: data.mime || file.type || 'application/octet-stream'
-        });
-
-        fileLabel.innerText = prevLabel;
-        fileInput.value = '';
-      } catch (err) {
-        console.error('Upload error', err);
-        alert('Upload failed: ' + (err.message || 'unknown'));
-        fileLabel.innerText = '??';
-        fileInput.value = '';
-      }
-    });
-  }
-
-  // ---- DOM helper to render messages ----
-  function addMessageToDOM(msg) {
-    // msg shape:
-    // text: { type: 'text', name, text, ts }
-    // file: { type: 'file', name, file: { url, originalName, size, mime }, ts }
-
-    const el = document.createElement('div');
-    el.classList.add('message');
-
-    const isSelf = (msg.name === name);
-    if (isSelf) el.classList.add('self');
-
-    // header (name + time)
-    const header = document.createElement('div');
-    header.style.fontSize = '0.9rem';
-    header.style.marginBottom = '4px';
-    header.style.color = '#333';
-    const time = new Date(msg.ts || Date.now());
-    const timeStr = time.toLocaleTimeString();
-    header.innerHTML = `<strong>${escapeHtml(msg.name || 'Anon')}</strong> <span style="font-weight:400; color:#666; font-size:0.85rem;">${timeStr}</span>`;
-    el.appendChild(header);
+    // header
+    const header = elt('div', 'msg-header');
+    const who = elt('strong'); who.textContent = msg.name || 'Anon';
+    const time = elt('span', 'msg-time');
+    time.textContent = msg.ts ? new Date(msg.ts).toLocaleTimeString() : '';
+    header.appendChild(who);
+    header.appendChild(time);
+    wrap.appendChild(header);
 
     // content
-    if (msg.type === 'file' && msg.file && msg.file.url) {
-      const fm = msg.file;
-      if (String(fm.mime || '').startsWith('image/')) {
-        // image inline
-        const img = document.createElement('img');
-        img.src = fm.url;
-        img.alt = fm.originalName || 'image';
-        img.loading = 'lazy';
-        img.style.maxWidth = '400px';
-        img.style.maxHeight = '400px';
-        img.style.borderRadius = '8px';
-        el.appendChild(img);
+    const body = elt('div', 'msg-body');
 
-        // small link + size below
-        const row = document.createElement('div');
-        row.style.marginTop = '6px';
-        row.innerHTML = `<a href="${fm.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(fm.originalName || fm.url)}</a> • ${humanSize(fm.size)}`;
-        el.appendChild(row);
+    if (msg.type === 'file' && msg.file) {
+      const f = msg.file;
+      // images inline
+      if (String(f.mime || '').startsWith('image/')) {
+        const img = elt('img', 'msg-image');
+        img.src = f.url;
+        img.alt = f.originalName || 'image';
+        img.loading = 'lazy';
+        body.appendChild(img);
+
+        const down = elt('div', 'msg-filemeta');
+        const a = elt('a'); a.href = f.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        a.textContent = f.originalName || f.url;
+        down.appendChild(a);
+        const metaSpan = elt('span', 'meta-span');
+        metaSpan.textContent = ` â€¢ ${humanSize(f.size)}`;
+        down.appendChild(metaSpan);
+        body.appendChild(down);
       } else {
-        // generic file link
-        const a = document.createElement('a');
-        a.href = fm.url;
+        // other file types: display link + metadata
+        const a = elt('a', 'msg-filelink');
+        a.href = f.url;
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
-        a.textContent = fm.originalName || fm.url;
-        el.appendChild(a);
+        a.textContent = f.originalName || f.url;
+        body.appendChild(a);
 
-        const meta = document.createElement('div');
-        meta.style.marginTop = '6px';
-        meta.style.color = '#666';
-        meta.style.fontSize = '0.9rem';
-        meta.textContent = `${fm.mime || ''} • ${humanSize(fm.size)}`;
-        el.appendChild(meta);
+        const meta = elt('div', 'msg-filemeta');
+        meta.textContent = `${f.mime || ''} â€¢ ${humanSize(f.size)}`;
+        body.appendChild(meta);
       }
     } else {
       // text message
-      const p = document.createElement('div');
-      p.style.whiteSpace = 'pre-wrap';
+      const p = elt('p');
       p.textContent = msg.text || '';
-      el.appendChild(p);
+      body.appendChild(p);
     }
 
-    chatbox.appendChild(el);
-    // scroll to bottom
-    chatbox.scrollTop = chatbox.scrollHeight;
+    wrap.appendChild(body);
+    chatbox.appendChild(wrap);
   }
 
-  // Basic XSS-safe text escaping for names and plain text (we use textContent where possible)
-  function escapeHtml(s) {
-    if (!s) return '';
-    return String(s)
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
-  }
+  // Submit message via form
+  chatForm.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const text = msgInput.value.trim();
+    if (!text) return;
+    socket.emit('chat', text);
+    msgInput.value = '';
+  });
+
+  // Enter key behaviour already handled by form submit; keep shift+enter for newline
+  msgInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      chatForm.requestSubmit();
+    }
+  });
+
+  // File upload flow:
+  // - User picks file -> client POST /upload (FormData)
+  // - Server responds with {url, filename, originalName, size, mime}
+  // - Client emits 'file' with that metadata (server will broadcast)
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    // quick client side check
+    const maxBytes = (10 * 1024 * 1024); // same as server MAX_FILE_MB default
+    if (file.size > maxBytes) {
+      alert(`File too large. Max allowed is ${humanSize(maxBytes)}.`);
+      fileInput.value = '';
+      return;
+    }
+
+    // Build FormData
+    const fd = new FormData();
+    fd.append('file', file);
+
+    // UI feedback (disable composer while uploading)
+    const sendBtn = document.querySelector('.composer-send');
+    const oldSendText = sendBtn ? sendBtn.textContent : null;
+    if (sendBtn) {
+      sendBtn.disabled = true;
+      sendBtn.textContent = 'Uploading...';
+    }
+
+    try {
+      const resp = await fetch('/upload', { method: 'POST', body: fd });
+      if (!resp.ok) {
+        throw new Error(`Upload failed: ${resp.status}`);
+      }
+      const data = await resp.json();
+      // Expected shape: { url, filename, originalName, size, mime }
+      socket.emit('file', {
+        url: data.url,
+        originalName: data.originalName || data.filename || file.name,
+        size: data.size || file.size,
+        mime: data.mime || file.type || 'application/octet-stream'
+      });
+    } catch (err) {
+      console.error('Upload error', err);
+      alert('Upload failed: ' + (err.message || 'unknown error'));
+    } finally {
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.textContent = oldSendText;
+      }
+      fileInput.value = ''; // reset input
+    }
+  });
+
+  // Accessibility: focus message input after join
+  msgInput.focus();
+
 })();

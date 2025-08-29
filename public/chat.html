@@ -1,23 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Chat Room</title>
+  <meta charset="utf-8" />
+  <title>AnonyChat — Chat</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <h1 id="roomName">Chat</h1>
-
-  <div id="chatbox"></div>
-
-  <div id="inputArea">
-    <input id="msg" autocomplete="off" placeholder="Type your message...">
-    <input type="file" id="fileInput" hidden>
-    <button id="fileBtn">📎</button>
-    <button onclick="send()">Send</button>
-  </div>
-
   <script src="/socket.io/socket.io.js"></script>
-  <script src="script.js"></script>
+  <!-- script.js is deferred so DOM is available -->
+  <script defer src="script.js"></script>
+</head>
+<body class="chat-body">
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1 id="roomName" class="room-title">Room</h1>
+      <div id="roomMeta" class="room-meta" aria-hidden="true"></div>
+    </div>
+    <div class="topbar-right">
+      <button id="leaveBtn" class="btn-ghost" title="Leave room">Leave</button>
+    </div>
+  </header>
+
+  <main id="main" class="main-area">
+    <section id="chatbox" class="chatbox" role="log" aria-live="polite" aria-relevant="additions"></section>
+  </main>
+
+  <footer class="composer">
+    <form id="chatForm" class="composer-form">
+      <input id="msg" name="msg" type="text" class="composer-input" autocomplete="off" placeholder="Type a message..." maxlength="5000" />
+
+      <label for="fileInput" class="file-label" title="Attach file" aria-hidden="false">📎
+        <input id="fileInput" name="file" type="file" hidden />
+      </label>
+
+      <button type="submit" class="btn-primary composer-send">Send</button>
+    </form>
+  </footer>
 </body>
 </html>

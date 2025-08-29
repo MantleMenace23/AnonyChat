@@ -3,261 +3,118 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AnonyChat — Join or Create</title>
-
-  <!-- Link to your global stylesheet (replace if you use a different filename) -->
+  <title>AnonyChat — Join</title>
   <link rel="stylesheet" href="style.css">
-
-  <!-- Meta for a nicer mobile experience -->
-  <meta name="theme-color" content="#2563eb" />
-  <meta name="description" content="Join or create anonymous chat rooms with file & image sharing." />
+  <meta name="description" content="Join AnonyChat rooms. Files & images supported." />
 </head>
 <body>
-  <!-- Page shell: center everything on the page -->
-  <div id="page" class="page-shell">
+  <div class="page-center" id="page">
     <header class="header">
-      <h1 class="app-title">AnonyChat</h1>
-      <p class="app-sub">Create or join ephemeral chat rooms. Files and images supported.</p>
+      <h1 class="logo">AnonyChat</h1>
+      <p class="tag">Ephemeral rooms • Images & file sharing • No account needed</p>
     </header>
 
-    <!-- Two-column card area (collapses on mobile) -->
-    <main class="card-grid" role="main" aria-labelledby="mainTitle">
-      <h2 id="mainTitle" class="visually-hidden">Chat Lobby</h2>
+    <main class="card" role="main" aria-labelledby="joinTitle">
+      <h2 id="joinTitle" class="card-title">Join a Room</h2>
 
-      <!-- JOIN CARD -->
-      <section class="card join-card" aria-labelledby="joinTitle">
-        <h3 id="joinTitle" class="card-title">Join a Room</h3>
-        <p class="card-desc">Enter your display name and the room code to join an existing room. If the room does not exist it will be created automatically (unless the creator set a limit).</p>
+      <p class="card-desc">Enter a display name and the room code to join. If the room doesn’t exist it will be created automatically.</p>
 
-        <form id="joinForm" class="card-form" autocomplete="off" novalidate>
-          <label class="label" for="join_name">Your name</label>
-          <input id="join_name" class="input" name="name" type="text" placeholder="e.g. Alex" maxlength="48" required>
+      <form id="joinForm" class="form" autocomplete="off" novalidate>
+        <label class="label" for="name">Display name</label>
+        <input id="name" class="input" name="name" type="text" placeholder="Your display name" maxlength="48" required>
 
-          <label class="label" for="join_room">Room code</label>
-          <input id="join_room" class="input" name="room" type="text" placeholder="e.g. party123" maxlength="64" required>
+        <label class="label" for="room">Room code</label>
+        <input id="room" class="input" name="room" type="text" placeholder="Room code (e.g. party123)" maxlength="64" required>
 
-          <div class="form-row">
-            <button type="submit" class="btn btn-primary" id="joinBtn">Join Room</button>
-            <button type="button" class="btn btn-ghost" id="demoJoinBtn" title="Quick demo join">Quick Demo</button>
-          </div>
-
-          <p id="joinError" class="form-error" role="status" aria-live="polite" hidden></p>
-        </form>
-
-        <div class="card-foot">
-          <small class="muted">Tip: your display name and last used room are saved locally for convenience.</small>
+        <div class="row">
+          <button id="joinBtn" type="submit" class="btn btn-primary">Join Room</button>
+          <button id="clearBtn" type="button" class="btn btn-ghost">Clear</button>
         </div>
-      </section>
 
-      <!-- CREATE CARD -->
-      <section class="card create-card" aria-labelledby="createTitle">
-        <h3 id="createTitle" class="card-title">Create a Room</h3>
-        <p class="card-desc">Create a room with a friendly name, pick its code, and set the maximum number of people allowed.</p>
+        <p id="error" class="form-error" role="status" aria-live="polite" hidden></p>
+      </form>
 
-        <form id="createForm" class="card-form" autocomplete="off" novalidate>
-          <label class="label" for="create_name">Your name</label>
-          <input id="create_name" class="input" name="creatorName" type="text" placeholder="Your display name" maxlength="48" required>
-
-          <label class="label" for="create_room_name">Room name (friendly)</label>
-          <input id="create_room_name" class="input" name="roomName" type="text" placeholder="e.g. Friday Hangout" maxlength="120" required>
-
-          <label class="label" for="create_room_code">Room code (used to join)</label>
-          <input id="create_room_code" class="input" name="roomCode" type="text" placeholder="short-code (letters/numbers)" maxlength="64" required>
-
-          <label class="label" for="create_max">Max people</label>
-          <input id="create_max" class="input" name="maxPeople" type="number" min="2" max="200" value="10" required>
-
-          <div class="form-row">
-            <button type="submit" class="btn btn-primary" id="createBtn">Create Room</button>
-            <button type="button" class="btn btn-secondary" id="clearCreateBtn" title="Clear fields">Clear</button>
-          </div>
-
-          <p id="createError" class="form-error" role="status" aria-live="polite" hidden></p>
-        </form>
-
-        <div class="card-foot">
-          <small class="muted">Pro tip: choose a memorable code (no spaces) so others can join quickly.</small>
-        </div>
-      </section>
+      <div class="foot">
+        <small class="muted">Names and most recently used room are stored locally on your browser.</small>
+      </div>
     </main>
 
-    <footer class="footer">
-      <small class="muted">AnonyChat — ephemeral rooms. Files are retained for a limited time.</small>
-    </footer>
+    <footer class="footer muted">AnonyChat — files kept for limited time</footer>
   </div>
 
-  <!-- Inline script: client-side form handling
-       - Saves name/room to localStorage for quick reuse
-       - Validates inputs
-       - Redirects to chat.html with query params
-       - For create: adds create=1 so chat.html can emit createRoom on load
-  -->
   <script>
-    (function () {
-      // Elements
-      const joinForm = document.getElementById('joinForm');
-      const joinName = document.getElementById('join_name');
-      const joinRoom = document.getElementById('join_room');
-      const joinError = document.getElementById('joinError');
-      const joinBtn = document.getElementById('joinBtn');
-      const demoJoinBtn = document.getElementById('demoJoinBtn');
+  (function () {
+    // Elements
+    const joinForm = document.getElementById('joinForm');
+    const nameIn = document.getElementById('name');
+    const roomIn = document.getElementById('room');
+    const errorEl = document.getElementById('error');
+    const clearBtn = document.getElementById('clearBtn');
 
-      const createForm = document.getElementById('createForm');
-      const createName = document.getElementById('create_name');
-      const createRoomName = document.getElementById('create_room_name');
-      const createRoomCode = document.getElementById('create_room_code');
-      const createMax = document.getElementById('create_max');
-      const createError = document.getElementById('createError');
-      const createBtn = document.getElementById('createBtn');
-      const clearCreateBtn = document.getElementById('clearCreateBtn');
+    // localStorage keys
+    const LS_NAME = 'anonychat_name';
+    const LS_ROOM = 'anonychat_room';
 
-      // LocalStorage keys
-      const LS_NAME = 'anonychat_name';
-      const LS_ROOM = 'anonychat_room';
-      const LS_CREATE_NAME = 'anonychat_create_name';
-      const LS_CREATE_ROOM_NAME = 'anonychat_create_room_name';
-      const LS_CREATE_ROOM_CODE = 'anonychat_create_room_code';
-      const LS_CREATE_MAX = 'anonychat_create_max';
+    // Prefill from localStorage
+    try {
+      const sName = localStorage.getItem(LS_NAME);
+      const sRoom = localStorage.getItem(LS_ROOM);
+      if (sName) nameIn.value = sName;
+      if (sRoom) roomIn.value = sRoom;
+    } catch (e) { /* ignore */ }
 
-      // Utility: show/hide error
-      function showError(el, msg) {
-        el.textContent = msg || '';
-        el.hidden = !msg;
-      }
+    function showError(msg) {
+      if (!msg) { errorEl.hidden = true; errorEl.textContent = ''; return; }
+      errorEl.textContent = msg;
+      errorEl.hidden = false;
+    }
 
-      // Prefill from localStorage if available
+    function isValidCode(s) {
+      if (!s) return false;
+      if (/\s/.test(s)) return false;
+      return /^[A-Za-z0-9_-]{1,64}$/.test(s);
+    }
+
+    function buildQuery(params) {
+      return Object.keys(params).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(String(params[k] == null ? '' : params[k]))).join('&');
+    }
+
+    joinForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      showError('');
+
+      const name = nameIn.value.trim();
+      const room = roomIn.value.trim();
+
+      if (!name) { showError('Please enter a display name.'); nameIn.focus(); return; }
+      if (!room) { showError('Please enter a room code.'); roomIn.focus(); return; }
+      if (!isValidCode(room)) { showError('Room code must be short, no spaces, only letters/numbers/_/- allowed.'); roomIn.focus(); return; }
+
+      // Save for convenience
       try {
-        const sName = localStorage.getItem(LS_NAME);
-        const sRoom = localStorage.getItem(LS_ROOM);
-        if (sName) joinName.value = sName;
-        if (sRoom) joinRoom.value = sRoom;
+        localStorage.setItem(LS_NAME, name);
+        localStorage.setItem(LS_ROOM, room);
+      } catch (err) { /* ignore */ }
 
-        const cName = localStorage.getItem(LS_CREATE_NAME);
-        const cRoomName = localStorage.getItem(LS_CREATE_ROOM_NAME);
-        const cRoomCode = localStorage.getItem(LS_CREATE_ROOM_CODE);
-        const cMax = localStorage.getItem(LS_CREATE_MAX);
-        if (cName) createName.value = cName;
-        if (cRoomName) createRoomName.value = cRoomName;
-        if (cRoomCode) createRoomCode.value = cRoomCode;
-        if (cMax) createMax.value = cMax;
-      } catch (e) {
-        // ignore storage errors
-      }
+      // Redirect to chat. If the server needs creation, server auto-creates on join.
+      const qs = buildQuery({ name, room });
+      window.location.href = 'chat.html?' + qs;
+    });
 
-      // Simple validator for room codes (no whitespace)
-      function isValidRoomCode(s) {
-        if (!s) return false;
-        if (/\s/.test(s)) return false;
-        // Let codes be alpha-numeric + - and _
-        return /^[A-Za-z0-9_-]{1,64}$/.test(s);
-      }
+    clearBtn.addEventListener('click', () => {
+      nameIn.value = '';
+      roomIn.value = '';
+      showError('');
+      try {
+        localStorage.removeItem(LS_NAME);
+        localStorage.removeItem(LS_ROOM);
+      } catch (err) {}
+      nameIn.focus();
+    });
 
-      // Build query string safely
-      function buildQuery(params) {
-        return Object.keys(params).map(k => {
-          return encodeURIComponent(k) + '=' + encodeURIComponent(String(params[k] == null ? '' : params[k]));
-        }).join('&');
-      }
-
-      // JOIN submit handler
-      joinForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        showError(joinError, '');
-
-        const name = joinName.value.trim();
-        const room = joinRoom.value.trim();
-
-        if (!name) {
-          showError(joinError, 'Please enter your display name.');
-          joinName.focus();
-          return;
-        }
-        if (!room) {
-          showError(joinError, 'Please enter a room code.');
-          joinRoom.focus();
-          return;
-        }
-        if (!isValidRoomCode(room)) {
-          showError(joinError, 'Room code must be short, no whitespace, letters/numbers/_/- allowed.');
-          joinRoom.focus();
-          return;
-        }
-
-        // Save to localStorage
-        try {
-          localStorage.setItem(LS_NAME, name);
-          localStorage.setItem(LS_ROOM, room);
-        } catch (err) { /* ignore */ }
-
-        // Redirect to chat page. chat.html will emit joinRoom({room, name}) on load.
-        const qs = buildQuery({ name, room });
-        window.location.href = `chat.html?${qs}`;
-      });
-
-      // Quick demo: fill example and join
-      demoJoinBtn.addEventListener('click', () => {
-        joinName.value = joinName.value || 'DemoUser';
-        joinRoom.value = joinRoom.value || 'demo';
-        joinForm.requestSubmit();
-      });
-
-      // CREATE submit handler
-      createForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        showError(createError, '');
-
-        const name = createName.value.trim();
-        const rname = createRoomName.value.trim();
-        const rcode = createRoomCode.value.trim();
-        const maxPeople = parseInt(createMax.value, 10);
-
-        if (!name) { showError(createError, 'Please enter your display name.'); createName.focus(); return; }
-        if (!rname) { showError(createError, 'Please enter a friendly room name.'); createRoomName.focus(); return; }
-        if (!rcode) { showError(createError, 'Please enter a room code.'); createRoomCode.focus(); return; }
-        if (!isValidRoomCode(rcode)) { showError(createError, 'Room code must be short, no whitespace, letters/numbers/_/- allowed.'); createRoomCode.focus(); return; }
-        if (!maxPeople || maxPeople < 2 || maxPeople > 200) { showError(createError, 'Max people must be between 2 and 200.'); createMax.focus(); return; }
-
-        // Save create fields for convenience
-        try {
-          localStorage.setItem(LS_CREATE_NAME, name);
-          localStorage.setItem(LS_CREATE_ROOM_NAME, rname);
-          localStorage.setItem(LS_CREATE_ROOM_CODE, rcode);
-          localStorage.setItem(LS_CREATE_MAX, String(maxPeople));
-          // Also save the join-style defaults
-          localStorage.setItem(LS_NAME, name);
-          localStorage.setItem(LS_ROOM, rcode);
-        } catch (err) { /* ignore */ }
-
-        // Redirect to chat.html with create flag. chat.js must detect create=1 and emit createRoom.
-        const params = {
-          create: '1',
-          name: name,
-          roomCode: rcode,
-          roomName: rname,
-          max: String(maxPeople)
-        };
-        const qs = buildQuery(params);
-        window.location.href = `chat.html?${qs}`;
-      });
-
-      // Clear create fields
-      clearCreateBtn.addEventListener('click', () => {
-        createName.value = '';
-        createRoomName.value = '';
-        createRoomCode.value = '';
-        createMax.value = 10;
-        try {
-          localStorage.removeItem(LS_CREATE_NAME);
-          localStorage.removeItem(LS_CREATE_ROOM_NAME);
-          localStorage.removeItem(LS_CREATE_ROOM_CODE);
-          localStorage.removeItem(LS_CREATE_MAX);
-        } catch (_) {}
-      });
-
-      // Accessibility: allow Enter to submit on inputs (already default), focus management
-      // Give initial focus to name field in Join
-      if (joinName) joinName.focus();
-    })();
+    // allow Enter to submit, focus name field
+    nameIn.focus();
+  })();
   </script>
 </body>
 </html>

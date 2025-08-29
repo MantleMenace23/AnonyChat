@@ -2,54 +2,54 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AnonyChat — Chat</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="description" content="AnonyChat room chat with image & file uploads" />
   <link rel="stylesheet" href="style.css">
-  <script src="/socket.io/socket.io.js"></script>
-  <script defer src="script.js"></script>
+  <meta name="description" content="AnonyChat chat room" />
 </head>
-<body class="chat-body">
-  <header class="topbar" role="banner">
-    <div class="topbar-left">
-      <h1 id="roomName" class="room-title">Room</h1>
-      <div id="roomMeta" class="room-meta" aria-hidden="true"></div>
-    </div>
-    <div class="topbar-right">
-      <button id="leaveBtn" class="btn-ghost" title="Leave room" aria-label="Leave room">Leave</button>
-    </div>
-  </header>
+<body>
+  <div class="chat-shell">
+    <header class="chat-header">
+      <div>
+        <h1 id="roomTitle">Room</h1>
+        <div id="meta" class="muted small"></div>
+      </div>
+      <div class="header-actions">
+        <button id="leaveBtn" class="btn btn-ghost">Leave</button>
+      </div>
+    </header>
 
-  <main id="main" class="main-area" role="main">
-    <section id="chatbox" class="chatbox" role="log" aria-live="polite" aria-relevant="additions"></section>
+    <main class="chat-main">
+      <section id="chatbox" class="chatbox" role="log" aria-live="polite"></section>
 
-    <aside id="presence" class="presence" aria-labelledby="presenceTitle">
-      <h2 id="presenceTitle" class="visually-hidden">People in room</h2>
-      <div id="presenceList" class="presence-list" aria-live="polite"></div>
-    </aside>
-  </main>
+      <aside id="presence" class="presence" aria-labelledby="presenceTitle">
+        <h3 id="presenceTitle" class="visually-hidden">People in room</h3>
+        <div id="presenceList" class="presence-list"></div>
+      </aside>
+    </main>
 
-  <footer class="composer" role="contentinfo">
-    <form id="chatForm" class="composer-form" autocomplete="off">
-      <input id="msg" name="msg" type="text" class="composer-input" autocomplete="off" placeholder="Type a message..." maxlength="5000" aria-label="Message input" />
+    <footer class="composer">
+      <form id="composerForm" class="composer-form" autocomplete="off">
+        <input id="msg" class="composer-input" type="text" placeholder="Type your message..." maxlength="5000" autocomplete="off" />
+        <label class="file-label" for="fileInput" title="Attach a file">📎
+          <input id="fileInput" type="file" hidden />
+        </label>
+        <button type="submit" class="btn btn-primary">Send</button>
+      </form>
 
-      <label for="fileInput" class="file-label" title="Attach file" aria-label="Attach file">
-        📎
-        <input id="fileInput" name="file" type="file" hidden />
-      </label>
-
-      <button type="submit" class="btn-primary composer-send" aria-label="Send message">Send</button>
-    </form>
-
-    <div id="uploadOverlay" class="upload-overlay" hidden aria-hidden="true">
-      <div class="upload-card">
-        <div id="uploadStatus" class="upload-status">Uploading…</div>
-        <progress id="uploadProgress" value="0" max="100"></progress>
-        <div style="display:flex; justify-content:flex-end; margin-top:8px;">
-          <button id="cancelUploadBtn" class="btn-ghost">Cancel</button>
+      <div id="uploadOverlay" class="upload-overlay hidden" aria-hidden="true">
+        <div class="upload-card">
+          <div id="uploadStatus" class="upload-status">Uploading…</div>
+          <progress id="uploadProgress" value="0" max="100"></progress>
+          <div style="text-align:right; margin-top:8px;">
+            <button id="cancelUploadBtn" class="btn btn-ghost">Cancel</button>
+          </div>
         </div>
       </div>
-    </div>
-  </footer>
+    </footer>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>

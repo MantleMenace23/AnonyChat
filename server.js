@@ -17,26 +17,22 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// In-memory rooms
+// In-memory room storage
 let rooms = {};
 
-// Setup storage for uploaded files/images
+// File upload setup
 const uploadsDir = path.join(__dirname, "public", "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
 
 const upload = multer({
   storage: multer.diskStorage({
-    destination: function (req, file, cb) {
-      cb(null, uploadsDir);
-    },
-    filename: function (req, file, cb) {
-      cb(null, Date.now() + "-" + file.originalname);
-    }
+    destination: (req, file, cb) => cb(null, uploadsDir),
+    filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname)
   })
   // No file size limit
 });
 
-// File upload endpoint
+// Upload endpoint
 app.post("/upload", upload.single("file"), (req, res) => {
   if (!req.file) return res.status(400).send("No file uploaded");
   res.json({ url: `/uploads/${req.file.filename}` });
@@ -46,7 +42,7 @@ app.post("/upload", upload.single("file"), (req, res) => {
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
-  // ---- Join Room ----
+  // Join room
   socket.on("joinRoom", ({ roomCode, name }) => {
     if (!roomCode || !name) return;
 
@@ -54,15 +50,17 @@ io.on("connection", (socket) => {
     rooms[roomCode].users[socket.id] = name;
     socket.join(roomCode);
 
+    // Send chat history to new user
     socket.emit("chatHistory", rooms[roomCode].messages);
 
+    // Announce join
     io.to(roomCode).emit("chatMessage", {
       sender: "System",
       text: `${name} joined the room.`
     });
   });
 
-  // ---- Chat Messages ----
+  // Handle chat messages
   socket.on("chatMessage", ({ roomCode, msg }) => {
     if (!roomCode || !msg || !rooms[roomCode]) return;
 
@@ -73,7 +71,7 @@ io.on("connection", (socket) => {
     io.to(roomCode).emit("chatMessage", message);
   });
 
-  // ---- Disconnect ----
+  // Disconnect
   socket.on("disconnect", () => {
     for (const roomCode in rooms) {
       if (rooms[roomCode].users[socket.id]) {
@@ -85,14 +83,13 @@ io.on("connection", (socket) => {
           text: `${name} left the room.`
         });
 
+        // Clean up empty rooms
         if (Object.keys(rooms[roomCode].users).length === 0 && rooms[roomCode].messages.length === 0) {
           delete rooms[roomCode];
         }
       }
     }
   });
-
-  // ---- Original custom events can go here ----
 });
 
 server.listen(PORT, () => {

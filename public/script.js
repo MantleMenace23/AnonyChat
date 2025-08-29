@@ -1,4 +1,4 @@
-const socket = io.connect(window.location.origin);
+const socket = io(); // auto-connect to current host
 
 const loginDiv = document.getElementById("login");
 const chatDiv = document.getElementById("chat");

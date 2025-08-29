@@ -4,21 +4,21 @@
   <meta charset="utf-8" />
   <title>AnonyChat — Join</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="description" content="AnonyChat - create or join a room and chat with uploads" />
+  <meta name="description" content="Join or create an AnonyChat room" />
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="join-body">
   <main class="join-card" role="main" aria-labelledby="joinTitle">
     <h1 id="joinTitle" class="join-title">AnonyChat</h1>
 
-    <p class="join-sub">Create a room or join one. Provide a display name and a room code.</p>
+    <p class="join-sub">Enter a display name and a room code to create or join a room.</p>
 
     <form id="joinForm" class="join-form" autocomplete="off" novalidate>
-      <label class="visually-hidden" for="nameInput">Your display name</label>
+      <label for="nameInput" class="visually-hidden">Display name</label>
       <input id="nameInput" name="name" type="text" placeholder="Your display name" maxlength="48" required aria-required="true">
 
-      <label class="visually-hidden" for="roomInput">Room code</label>
-      <input id="roomInput" name="room" type="text" placeholder="Room code (e.g. Party123)" maxlength="64" required aria-required="true">
+      <label for="roomInput" class="visually-hidden">Room code</label>
+      <input id="roomInput" name="room" type="text" placeholder="Room code (e.g. party123)" maxlength="64" required aria-required="true">
 
       <div class="join-actions">
         <button id="joinBtn" type="submit" class="btn-primary" aria-label="Join room">Join Room</button>
@@ -28,22 +28,25 @@
     </form>
 
     <section class="join-help">
-      <p class="join-note">Tip: pick a short room code your friends will remember. Names are public in the room.</p>
+      <p class="join-note">Tip: Use a short code your friends can remember. Names appear in the room.</p>
     </section>
   </main>
 
   <script>
-    // Client-side join logic:
-    // - Validate inputs
-    // - Save to localStorage for convenience (used by chat.html)
-    // - Redirect to chat.html
     (function () {
       const joinForm = document.getElementById('joinForm');
       const nameInput = document.getElementById('nameInput');
       const roomInput = document.getElementById('roomInput');
       const joinError = document.getElementById('joinError');
 
-      // Focus name
+      // Autofill from localStorage if available
+      try {
+        const storedName = localStorage.getItem('anonychat_name');
+        const storedRoom = localStorage.getItem('anonychat_room');
+        if (storedName) nameInput.value = storedName;
+        if (storedRoom) roomInput.value = storedRoom;
+      } catch (e) { /* ignore storage errors */ }
+
       nameInput.focus();
 
       joinForm.addEventListener('submit', (e) => {
@@ -58,15 +61,12 @@
           return;
         }
 
-        // Save to local storage so chat.html can read them
         try {
           localStorage.setItem('anonychat_name', name);
           localStorage.setItem('anonychat_room', room);
-        } catch (err) {
-          // ignore storage errors
-        }
+        } catch (err) { /* ignore */ }
 
-        // Build an encoded URL (chat.html will read from localStorage as a fallback)
+        // Redirect to chat.html with params (chat will read from localStorage as fallback)
         const url = `chat.html?name=${encodeURIComponent(name)}&room=${encodeURIComponent(room)}`;
         window.location.href = url;
       });

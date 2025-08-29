@@ -1,6 +1,6 @@
 {
   "name": "anonychat",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "AnonyChat — anonymous rooms with image & file sharing",
   "main": "server.js",
   "scripts": {
@@ -12,7 +12,7 @@
   "license": "MIT",
   "dependencies": {
     "express": "^4.19.4",
-    "socket.io": "^4.7.5",
+    "socket.io": "^4.8.0",
     "multer": "^1.4.5-lts.1",
     "uuid": "^9.0.1",
     "mime-types": "^2.1.35",

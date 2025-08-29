@@ -1,41 +1,32 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>AnonyChat — with files</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="/styles.css" />
+  <meta charset="UTF-8">
+  <title>AnonyChat</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="app">
-    <header>
-      <h1>AnonyChat</h1>
-      <span class="sub">Image & File sharing enabled</span>
-    </header>
+  <!-- Join screen -->
+  <div id="joinScreen">
+    <h1>Welcome to AnonyChat</h1>
+    <input id="username" type="text" placeholder="Enter your name">
+    <input id="room" type="text" placeholder="Enter room code">
+    <button id="joinBtn">Join</button>
+  </div>
 
-    <main id="messages" aria-live="polite"></main>
-
-    <form id="chatForm" autocomplete="off">
-      <input id="messageInput" type="text" placeholder="Type a message…" maxlength="5000" />
-      <label class="file-btn">
-        <input id="fileInput" type="file" hidden />
-        📎
-      </label>
-      <button id="sendBtn" type="submit">Send</button>
-    </form>
-
-    <div id="uploadPreview" class="hidden">
-      <div class="preview-row">
-        <span id="previewName"></span>
-        <button id="cancelUpload" type="button" title="Clear">✖</button>
-      </div>
-      <img id="previewImage" class="hidden" alt="Preview" />
-      <progress id="uploadProgress" value="0" max="100"></progress>
-      <button id="uploadBtn" type="button">Upload & Send</button>
+  <!-- Chat screen -->
+  <div id="chatScreen" style="display:none;">
+    <h1 id="roomName"></h1>
+    <div id="chatbox"></div>
+    <div id="inputArea">
+      <input id="msg" autocomplete="off" placeholder="Type a message...">
+      <label for="fileInput" class="upload-icon" title="Upload file">📎</label>
+      <input type="file" id="fileInput" hidden>
+      <button id="sendBtn">Send</button>
     </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script type="module" src="/client.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>

@@ -1,18 +1,42 @@
 body {
   font-family: Arial, sans-serif;
-  background: #f4f4f9;
   margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
   height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f4f4f9;
 }
 
 h1 {
-  margin: 0;
-  padding: 15px;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+/* Join screen */
+#joinScreen {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* Chat screen */
+#chatScreen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+#roomName {
   background: #333;
   color: white;
+  padding: 12px;
+  margin: 0;
   text-align: center;
 }
 
@@ -21,58 +45,60 @@ h1 {
   padding: 10px;
   overflow-y: auto;
   background: white;
-}
-
-.bubble {
-  margin: 5px 0;
-  padding: 10px;
-  border-radius: 10px;
-  background: #e0e0e0;
-  max-width: 70%;
-  word-wrap: break-word;
-}
-
-.bubble.me {
-  background: #4CAF50;
-  color: white;
-  margin-left: auto;
-}
-
-.bubble strong {
-  display: block;
-  margin-bottom: 4px;
-}
-
-.bubble img {
-  max-width: 200px;
-  border-radius: 8px;
-  display: block;
-  margin-top: 5px;
+  border-bottom: 1px solid #ccc;
 }
 
 #inputArea {
   display: flex;
+  align-items: center;
   padding: 10px;
-  background: #ddd;
-  gap: 5px;
+  background: #eee;
+  border-top: 1px solid #ccc;
 }
 
 #msg {
   flex: 1;
-  padding: 10px;
+  padding: 8px;
+  border: 1px solid #ccc;
   border-radius: 5px;
-  border: 1px solid #aaa;
 }
 
 button {
-  padding: 10px 15px;
+  padding: 8px 14px;
+  margin-left: 8px;
   border: none;
-  border-radius: 5px;
   background: #333;
   color: white;
+  border-radius: 5px;
   cursor: pointer;
 }
 
 button:hover {
   background: #555;
+}
+
+.upload-icon {
+  font-size: 20px;
+  cursor: pointer;
+  margin-left: 8px;
+}
+
+/* 📱 Mobile responsive */
+@media (max-width: 600px) {
+  #inputArea {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #msg {
+    margin-bottom: 8px;
+    width: 100%;
+  }
+
+  .upload-icon, button {
+    width: 100%;
+    text-align: center;
+    margin-left: 0;
+    margin-top: 5px;
+  }
 }

@@ -3,7 +3,6 @@
   "version": "2.0.0",
   "description": "Anonymous chat with image and file sharing",
   "main": "server.js",
-  "type": "module",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js"

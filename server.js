@@ -9,90 +9,68 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const PORT = process.env.PORT || 10000;
-
-// -------- FILE UPLOAD SETUP -------- //
+// ===== Multer setup for file uploads =====
 const uploadDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = Date.now() + "-" + file.originalname;
-    cb(null, uniqueName);
-  },
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) =>
+    cb(null, Date.now() + "-" + file.originalname),
 });
+
 const upload = multer({ storage });
 
-// -------- STATIC FILES -------- //
-app.use("/uploads", express.static(uploadDir));
+// ===== Middleware =====
+app.use(express.static(__dirname)); // serves index.html, chat.html, etc.
+app.use("/uploads", express.static(uploadDir)); // serve uploaded files
 
-// Chat & Lobby
-app.use("/chat", express.static(path.join(__dirname, "public/chat")));
-
-// Games
-app.use("/games", express.static(path.join(__dirname, "public/games")));
-
-// Default route → Lobby
+// ===== Routes =====
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/chat/index.html"));
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// Chat room
-app.get("/chat", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/chat/chat.html"));
+app.get("/chat/:room", (req, res) => {
+  res.sendFile(path.join(__dirname, "chat.html"));
 });
 
-// Upload route
+// Upload endpoint (for images/files)
 app.post("/upload", upload.single("file"), (req, res) => {
-  if (!req.file) return res.status(400).send("No file uploaded");
-  const fileUrl = `/uploads/${req.file.filename}`;
-  res.json({ fileUrl, originalName: req.file.originalname });
+  if (!req.file) return res.status(400).send("No file uploaded.");
+  const fileUrl = "/uploads/" + req.file.filename;
+  res.json({ url: fileUrl });
 });
 
-// -------- SOCKET.IO CHAT LOGIC -------- //
+// ===== Socket.io =====
 io.on("connection", (socket) => {
-  console.log("User connected");
+  console.log("New client connected");
 
-  // User joins a room
-  socket.on("joinRoom", ({ username, room }) => {
+  socket.on("joinRoom", (room, username) => {
     socket.join(room);
-    socket.username = username;
-    socket.room = room;
-
-    // Notify others
-    socket.to(room).emit("user-joined", username);
+    console.log(`${username} joined ${room}`);
+    socket.to(room).emit("message", {
+      user: "system",
+      text: `${username} joined the room.`,
+    });
   });
 
-  // Text messages
-  socket.on("send-message", ({ sender, message }) => {
-    if (socket.room) {
-      io.to(socket.room).emit("receive-message", { sender, message });
-    }
+  socket.on("chatMessage", ({ room, user, text, color }) => {
+    io.to(room).emit("message", { user, text, color });
   });
 
-  // File messages
-  socket.on("send-file", ({ sender, fileUrl, originalName }) => {
-    if (socket.room) {
-      io.to(socket.room).emit("receive-file", {
-        sender,
-        fileUrl,
-        originalName,
-      });
-    }
+  socket.on("fileUpload", ({ room, user, url }) => {
+    io.to(room).emit("fileMessage", { user, url });
   });
 
-  // Disconnect
   socket.on("disconnect", () => {
-    if (socket.username && socket.room) {
-      socket.to(socket.room).emit("user-left", socket.username);
-    }
+    console.log("Client disconnected");
   });
 });
 
-// -------- START SERVER -------- //
+// ===== Start server =====
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

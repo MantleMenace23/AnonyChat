@@ -1,0 +1,29 @@
+/* Extra overrides if needed, mostly Tailwind handles layout */
+body { font-family: 'Inter', sans-serif; }
+
+#grid .game-tile {
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+#grid .game-tile:hover {
+  transform: scale(1.03);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+
+#playOverlay iframe {
+  background: #fff;
+}
+
+/* Drag cursor */
+.dragging {
+  cursor: grabbing !important;
+  opacity: 0.7;
+}
+
+/* Upload preview images */
+#reorderArea img {
+  width: 60px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+}

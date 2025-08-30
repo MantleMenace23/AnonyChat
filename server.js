@@ -1,95 +1,122 @@
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
-const path = require("path");
-const multer = require("multer");
-const fs = require("fs");
+// server.js — single web service hosting both chat and games (dynamic static by hostname)
+// IMPORTANT: place your chat files in ./public/chat and games files in ./public/games
+
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const PORT = process.env.PORT || 3000;
+// helper: pick folder by hostname
+function getFolderByHost(hostname) {
+  if (!hostname) return path.join(__dirname, 'public', 'chat');
+  hostname = hostname.toLowerCase();
+  if (hostname.startsWith('games.')) return path.join(__dirname, 'public', 'games');
+  return path.join(__dirname, 'public', 'chat');
+}
 
-// Serve static files
-app.use(express.static(path.join(__dirname, "public")));
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+// Dynamic static middleware: serves files from chat OR games depending on hostname
+app.use((req, res, next) => {
+  const host = req.hostname || req.headers.host || '';
+  const staticFolder = getFolderByHost(host.split(':')[0]); // strip port if any
+  express.static(staticFolder, { index: false })(req, res, next);
 });
 
-// In-memory room storage
-let rooms = {};
-
-// File upload setup
-const uploadsDir = path.join(__dirname, "public", "uploads");
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
-
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => cb(null, uploadsDir),
-    filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname)
-  })
+// Root route: serve the index for the right site
+app.get('/', (req, res) => {
+  const host = (req.hostname || req.headers.host || '').split(':')[0].toLowerCase();
+  const folder = getFolderByHost(host);
+  res.sendFile(path.join(folder, 'index.html'));
 });
 
-// Upload endpoint
-app.post("/upload", upload.single("file"), (req, res) => {
-  if (!req.file) return res.status(400).send("No file uploaded");
-  res.json({ url: `/uploads/${req.file.filename}` });
+// Also explicitly serve games index if someone requests /games (handy)
+app.get('/games', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'games', 'index.html'));
 });
 
-// Socket.io logic
-io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
+// ---------------------
+// Socket.IO chat logic
+// ---------------------
+// This implements the common events used by simple chat: joinRoom, chatMessage, disconnect
+// It preserves the older behavior of emitting 'message' strings so existing clients keep working.
 
-  // Join room
-  socket.on("joinRoom", ({ roomCode, name }) => {
-    if (!roomCode || !name) return;
+const sockets = {}; // socketId -> { username, room }
 
-    if (!rooms[roomCode]) rooms[roomCode] = { users: {}, messages: [] };
-    rooms[roomCode].users[socket.id] = name;
-    socket.join(roomCode);
+io.on('connection', (socket) => {
+  console.log('socket connected', socket.id);
 
-    // Send chat history
-    socket.emit("chatHistory", rooms[roomCode].messages);
-
-    // Announce join
-    io.to(roomCode).emit("chatMessage", {
-      sender: "System",
-      text: `${name} joined the room.`
-    });
-  });
-
-  // Chat messages
-  socket.on("chatMessage", ({ roomCode, msg, color }) => {
-    if (!roomCode || !msg || !rooms[roomCode]) return;
-
-    const sender = rooms[roomCode].users[socket.id] || "Unknown";
-    const message = { sender, text: msg, color };
-
-    rooms[roomCode].messages.push(message);
-    io.to(roomCode).emit("chatMessage", message);
-  });
-
-  // Disconnect
-  socket.on("disconnect", () => {
-    for (const roomCode in rooms) {
-      if (rooms[roomCode].users[socket.id]) {
-        const name = rooms[roomCode].users[socket.id];
-        delete rooms[roomCode].users[socket.id];
-
-        io.to(roomCode).emit("chatMessage", {
-          sender: "System",
-          text: `${name} left the room.`
-        });
-
-        if (Object.keys(rooms[roomCode].users).length === 0 && rooms[roomCode].messages.length === 0) {
-          delete rooms[roomCode];
-        }
+  socket.on('joinRoom', (room, username) => {
+    try {
+      // leave previous room if any
+      const prev = sockets[socket.id];
+      if (prev && prev.room && prev.room !== room) {
+        socket.leave(prev.room);
+        io.to(prev.room).emit('message', `${prev.username} left the room`);
       }
+
+      socket.join(room);
+      sockets[socket.id] = { username: String(username || 'Anon'), room: String(room || 'lobby') };
+
+      // notify room (string message for compatibility)
+      io.to(room).emit('message', `${username} joined ${room}`);
+
+      // send updated user list (non-breaking: additional event)
+      const users = getUsersInRoom(room);
+      io.to(room).emit('roomData', { room, users });
+    } catch (err) {
+      console.error('joinRoom error', err);
     }
   });
+
+  socket.on('chatMessage', (data) => {
+    // data expected: { room, username, message } OR plain { message } if you use other format
+    try {
+      if (data && data.room && data.username) {
+        io.to(data.room).emit('message', `${data.username}: ${data.message}`);
+      } else if (data && data.message) {
+        // fallback: broadcast to all
+        io.emit('message', `${data.message}`);
+      }
+    } catch (err) {
+      console.error('chatMessage error', err);
+    }
+  });
+
+  socket.on('leaveRoom', () => {
+    const s = sockets[socket.id];
+    if (s && s.room) {
+      socket.leave(s.room);
+      io.to(s.room).emit('message', `${s.username} left ${s.room}`);
+      const users = getUsersInRoom(s.room);
+      io.to(s.room).emit('roomData', { room: s.room, users });
+      delete sockets[socket.id];
+    }
+  });
+
+  socket.on('disconnect', () => {
+    const s = sockets[socket.id];
+    if (s && s.room) {
+      io.to(s.room).emit('message', `${s.username} disconnected`);
+      const users = getUsersInRoom(s.room);
+      io.to(s.room).emit('roomData', { room: s.room, users });
+    }
+    delete sockets[socket.id];
+    console.log('socket disconnected', socket.id);
+  });
 });
 
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// helper: get array of usernames in a room
+function getUsersInRoom(room) {
+  const users = [];
+  for (const id in sockets) {
+    if (sockets[id].room === room) users.push(sockets[id].username);
+  }
+  return users;
+}
+
+// listen
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));

@@ -30,8 +30,9 @@ app.get("/games", (req, res) => {
 
 // Default route (redirect to chat lobby)
 app.get("/", (req, res) => {
-  res.redirect("/chat");
+    res.sendFile(path.join(__dirname, "public/chat/index.html"));
 });
+
 
 // Socket.io chat logic
 io.on("connection", (socket) => {

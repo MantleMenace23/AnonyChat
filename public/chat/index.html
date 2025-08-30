@@ -1,59 +1,66 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-<!-- Slick Games button for Chat site -->
-<a href="https://games.anonychat.xyz" 
-   class="fixed top-4 left-4 z-50 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg shadow-lg font-semibold flex items-center gap-2 transition">
-   🎮 Games
-</a>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AnonyChat — Chat</title>
 
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AnonyChat</title>
-  <link rel="stylesheet" href="style.css">
+  <!-- Shared CSS -->
+  <link rel="stylesheet" href="/css/chat.css">
+
+  <!-- Button to go to games -->
+  <a href="/games" 
+     class="fixed top-4 left-4 z-50 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg shadow-lg font-semibold transition flex items-center gap-2">
+     🎮 Games
+  </a>
 </head>
 <body>
-  <!-- Lobby / Join Room -->
-  <div class="container" id="login">
-    <h1>Join a Room</h1>
-    <input type="text" id="nameInput" placeholder="Your name" autocomplete="off" required>
-    <input type="text" id="roomInput" placeholder="Room code" autocomplete="off" required>
-    <button id="joinBtn">Join</button>
-  </div>
+  <div class="chat-shell">
+    <header class="chat-header">
+      <div>
+        <h1 id="roomTitle">Room</h1>
+        <div id="meta" class="muted small"></div>
+      </div>
+      <div class="header-actions">
+        <button id="leaveBtn" class="btn btn-ghost">Leave</button>
+      </div>
+    </header>
 
-  <!-- Chat Area -->
-  <div class="container chat hidden" id="chat">
-    <h2 id="roomTitle"></h2>
+    <main class="chat-main">
+      <section id="chatbox" class="chatbox" role="log" aria-live="polite"></section>
 
-    <div id="chatBox"></div>
+      <aside id="presence" class="presence" aria-labelledby="presenceTitle">
+        <h3 id="presenceTitle" class="visually-hidden">People in room</h3>
+        <div id="presenceList" class="presence-list"></div>
+      </aside>
+    </main>
 
-    <div class="chat-controls">
-      <input type="text" id="messageInput" placeholder="Type a message" autocomplete="off">
-      <button id="sendBtn">Send</button>
-      <input type="file" id="fileInput">
-      <button id="sendFileBtn">Send File</button>
+    <footer class="composer">
+      <form id="composerForm" class="composer-form" autocomplete="off">
+        <input id="msg" class="composer-input" type="text" placeholder="Type your message..." maxlength="5000" autocomplete="off" />
+        <label class="file-label" for="fileInput" title="Attach a file">📎
+          <input id="fileInput" type="file" hidden />
+        </label>
+        <button type="submit" class="btn btn-primary">Send</button>
+      </form>
 
-      <!-- Color selector -->
-      <label for="colorSelect">Text color:</label>
-      <select id="colorSelect">
-        <option value="#ffcc00" style="color:#ffcc00;">Yellow</option>
-        <option value="#00ccff" style="color:#00ccff;">Cyan</option>
-        <option value="#ff4444" style="color:#ff4444;">Red</option>
-        <option value="#44ff44" style="color:#44ff44;">Green</option>
-        <option value="#ff88ff" style="color:#ff88ff;">Pink</option>
-        <option value="#ffaa00" style="color:#ffaa00;">Orange</option>
-        <option value="#8888ff" style="color:#8888ff;">Purple</option>
-        <option value="#ffffff" style="color:#ffffff;">White</option>
-        <option value="#00ff88" style="color:#00ff88;">Mint</option>
-        <option value="#ff00aa" style="color:#ff00aa;">Magenta</option>
-      </select>
-    </div>
+      <div id="uploadOverlay" class="upload-overlay hidden" aria-hidden="true">
+        <div class="upload-card">
+          <div id="uploadStatus" class="upload-status">Uploading…</div>
+          <progress id="uploadProgress" value="0" max="100"></progress>
+          <div style="text-align:right; margin-top:8px;">
+            <button id="cancelUploadBtn" class="btn btn-ghost">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </footer>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="script.js"></script>
+  <script src="/chat/script.js"></script>
 </body>
 </html>

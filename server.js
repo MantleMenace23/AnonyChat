@@ -1,62 +1,58 @@
 const express = require("express");
+const http = require("http");
 const path = require("path");
+const { Server } = require("socket.io");
+
 const app = express();
-const http = require("http").createServer(app);
-const io = require("socket.io")(http);
+const server = http.createServer(app);
+const io = new Server(server);
 
-// Serve all static files from public
-app.use(express.static(path.join(__dirname, "public")));
+const PORT = process.env.PORT || 10000;
 
-// ---------- ROUTES ----------
+// Serve static files
+app.use("/chat", express.static(path.join(__dirname, "public/chat")));
+app.use("/games", express.static(path.join(__dirname, "public/games")));
+app.use("/css", express.static(path.join(__dirname, "public/css")));
 
-// Chat main page
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "chat", "index.html"));
-});
-
-// Chat alternative page if needed
+// Routes for chat pages
 app.get("/chat", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "chat", "chat.html"));
+  res.sendFile(path.join(__dirname, "public/chat/index.html"));
 });
 
-// Games main page
+app.get("/chat/room", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/chat/chat.html"));
+});
+
+// Routes for games pages
 app.get("/games", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "games", "index.html"));
+  res.sendFile(path.join(__dirname, "public/games/index.html"));
 });
 
-// Optional: serve other static assets inside chat or games folders
-app.use("/chat", express.static(path.join(__dirname, "public", "chat")));
-app.use("/games", express.static(path.join(__dirname, "public", "games")));
+// Default route (redirect to chat lobby)
+app.get("/", (req, res) => {
+  res.redirect("/chat");
+});
 
-// ---------- SOCKET.IO FOR CHAT ----------
-
-let users = {};
-
+// Socket.io chat logic
 io.on("connection", (socket) => {
-  let userName;
+  console.log("A user connected");
 
-  // User joins chat
-  socket.on("join", (name) => {
-    userName = name;
-    users[socket.id] = userName;
-    io.emit("user-joined", userName);
+  socket.on("join", (username) => {
+    socket.username = username;
+    socket.broadcast.emit("user-joined", username);
   });
 
-  // User sends message
   socket.on("send-message", ({ sender, message }) => {
     io.emit("receive-message", { sender, message });
   });
 
-  // User disconnects
   socket.on("disconnect", () => {
-    if (userName) {
-      io.emit("user-left", userName);
-      delete users[socket.id];
+    if (socket.username) {
+      socket.broadcast.emit("user-left", socket.username);
     }
   });
 });
 
-// ---------- START SERVER ----------
-
-const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});

@@ -9,79 +9,80 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 const PORT = process.env.PORT || 10000;
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "admin";
 
 // --- Serve static files ---
-app.use("/chat", express.static(path.join(__dirname, "public/chat")));
-app.use("/games", express.static(path.join(__dirname, "public/games")));
+app.use(express.static(path.join(__dirname, "public"))); // everything under public
 
-// --- Routes for Chat ---
+// --- Chat routes ---
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/chat/index.html"));
+  res.sendFile(path.join(__dirname, "public/chat/index.html")); // chat lobby
 });
 
 app.get("/chat", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/chat/index.html"));
+  res.sendFile(path.join(__dirname, "public/chat/chat.html")); // chat room
 });
 
-app.get("/chat/room", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/chat/chat.html"));
-});
+// --- Games site route for subdomain ---
+app.get("/", (req, res, next) => {
+  // detect host header for games subdomain
+  const host = req.headers.host;
+  if (host && host.startsWith("games.")) {
+    const uploadsDir = path.join(__dirname, "public/games/game_uploads");
+    let gameFiles = [];
 
-// --- Routes for Games ---
-app.get("/games", (req, res) => {
-  const uploadsDir = path.join(__dirname, "public/games/game_uploads");
-  let gameFiles = [];
+    if (fs.existsSync(uploadsDir)) {
+      gameFiles = fs.readdirSync(uploadsDir).filter(f => f.endsWith(".html"));
+    }
 
-  // Pull all HTML files from game_uploads
-  if (fs.existsSync(uploadsDir)) {
-    gameFiles = fs.readdirSync(uploadsDir).filter(f => f.endsWith(".html"));
+    let tilesHTML = "";
+    gameFiles.forEach(file => {
+      const filePath = path.join(uploadsDir, file);
+      const content = fs.readFileSync(filePath, "utf-8");
+
+      // Extract first image in HTML or fallback
+      const imgMatch = content.match(/<img\s+src=["']([^"']+)["']/i);
+      const titleMatch = content.match(/<title>([^<]+)<\/title>/i);
+
+      const img = imgMatch ? imgMatch[1] : "/games/default.png";
+      const title = titleMatch ? titleMatch[1] : file.replace(".html", "");
+
+      tilesHTML += `
+        <div class="game-tile rounded-lg overflow-hidden shadow-lg">
+          <a href="/games/game_uploads/${file}" target="_blank" class="block hover:scale-105 transition-transform duration-200">
+            <img src="${img}" alt="${title}" class="w-full h-40 object-cover"/>
+            <p class="text-center text-lg font-semibold mt-2 text-slate-100">${title}</p>
+          </a>
+        </div>
+      `;
+    });
+
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>AnonyChat Games</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+          body { background: linear-gradient(to bottom, #1f2937, #111827); font-family: 'Inter', sans-serif; color: #f9fafb; }
+          main { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; padding: 2rem; max-width: 1200px; margin: 0 auto; }
+        </style>
+      </head>
+      <body>
+        <header class="max-w-6xl mx-auto p-4 text-center">
+          <h1 class="text-3xl font-bold">AnonyChat Games</h1>
+          <p class="text-slate-400 mt-1">Click a tile to play fullscreen</p>
+        </header>
+        <main>
+          ${tilesHTML || '<p class="text-center text-slate-400 col-span-full">No games uploaded yet.</p>'}
+        </main>
+      </body>
+      </html>
+    `);
+    return;
   }
-
-  // Build HTML dynamically
-  let tilesHTML = "";
-  gameFiles.forEach(file => {
-    const filePath = path.join(uploadsDir, file);
-    const content = fs.readFileSync(filePath, "utf-8");
-
-    // Extract image src and title from the file
-    let imgMatch = content.match(/<img\s+src=["']([^"']+)["']/i);
-    let titleMatch = content.match(/<title>([^<]+)<\/title>/i);
-
-    const img = imgMatch ? imgMatch[1] : "default.png";
-    const title = titleMatch ? titleMatch[1] : file.replace(".html", "");
-
-    tilesHTML += `
-      <div class="game-tile">
-        <a href="/games/game_uploads/${file}" target="_blank">
-          <img src="${img}" alt="${title}" />
-          <p>${title}</p>
-        </a>
-      </div>
-    `;
-  });
-
-  // Send the full page
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>AnonyChat Games</title>
-      <script src="https://cdn.tailwindcss.com"></script>
-      <link rel="stylesheet" href="/games/games.css">
-    </head>
-    <body class="bg-gradient-to-b from-slate-900 to-slate-800 text-slate-100 font-sans">
-      <header class="max-w-6xl mx-auto p-4 flex items-center justify-between gap-4">
-        <h1 class="text-2xl font-bold">AnonyChat Games</h1>
-      </header>
-      <main class="max-w-6xl mx-auto p-4 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        ${tilesHTML || '<p class="text-center text-slate-400 col-span-full">No games uploaded yet.</p>'}
-      </main>
-    </body>
-    </html>
-  `);
+  next();
 });
 
 // --- Socket.io for Chat ---

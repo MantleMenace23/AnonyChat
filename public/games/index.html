@@ -37,6 +37,75 @@
     <iframe id="playFrame" class="flex-1 w-full h-full bg-white" frameborder="0" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
   </div>
 
-  <script type="module" src="app.js"></script>
+  <script type="module">
+    const grid = document.getElementById('grid');
+    const empty = document.getElementById('empty');
+    const searchInput = document.getElementById('search');
+    const playOverlay = document.getElementById('playOverlay');
+    const playFrame = document.getElementById('playFrame');
+    const playTitle = document.getElementById('playTitle');
+    const backBtn = document.getElementById('backBtn');
+    const openNewTab = document.getElementById('openNewTab');
+
+    let games = [];
+
+    async function loadGames() {
+      try {
+        const res = await fetch('/games/list-uploads');
+        games = await res.json();
+
+        if (!games.length) {
+          empty.classList.remove('hidden');
+          return;
+        }
+        empty.classList.add('hidden');
+        renderTiles(games);
+      } catch (err) {
+        console.error('Failed to load games:', err);
+      }
+    }
+
+    function renderTiles(list) {
+      grid.innerHTML = '';
+      list.forEach(async file => {
+        const htmlRes = await fetch(`/games/game_uploads/${file}`);
+        const htmlText = await htmlRes.text();
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlText, 'text/html');
+        const title = doc.querySelector('title')?.textContent || 'Untitled';
+        const imgSrc = doc.querySelector('img')?.getAttribute('src') || '';
+
+        const tile = document.createElement('div');
+        tile.className = 'bg-slate-800 rounded-lg overflow-hidden cursor-pointer hover:scale-105 transition-transform';
+        tile.innerHTML = `
+          <img src="${imgSrc}" alt="${title}" class="w-full h-40 object-cover">
+          <div class="p-2 text-center font-semibold">${title}</div>
+        `;
+        tile.onclick = () => {
+          playFrame.src = `/games/game_uploads/${file}`;
+          playTitle.textContent = title;
+          playOverlay.classList.remove('hidden');
+        };
+        grid.appendChild(tile);
+      });
+    }
+
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value.toLowerCase();
+      renderTiles(games.filter(f => f.toLowerCase().includes(query)));
+    });
+
+    backBtn.addEventListener('click', () => {
+      playOverlay.classList.add('hidden');
+      playFrame.src = '';
+    });
+
+    openNewTab.addEventListener('click', () => {
+      window.open(playFrame.src, '_blank');
+    });
+
+    loadGames();
+  </script>
 </body>
 </html>

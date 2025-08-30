@@ -1,3 +1,4 @@
+// app.js
 const grid = document.getElementById("grid");
 const searchInput = document.getElementById("search");
 const playOverlay = document.getElementById("playOverlay");
@@ -6,67 +7,68 @@ const playTitle = document.getElementById("playTitle");
 const backBtn = document.getElementById("backBtn");
 const openNewTab = document.getElementById("openNewTab");
 
-// Load games
-async function loadGames() {
+let games = [];
+
+// Fetch game list
+async function fetchGames() {
   try {
     const res = await fetch("/games/list");
-    const games = await res.json();
-
-    grid.innerHTML = "";
-    if (!games.length) {
-      document.getElementById("empty").classList.remove("hidden");
-      return;
-    } else {
-      document.getElementById("empty").classList.add("hidden");
-    }
-
-    games.forEach(file => {
-      const name = file.replace(".html", "");
-      const tile = document.createElement("div");
-      tile.className = "bg-slate-900 p-4 rounded-lg shadow hover:shadow-lg cursor-pointer flex flex-col items-center gap-2";
-      const img = document.createElement("img");
-      img.src = `/games/game_uploads/${file}#logo`; // Anchor to logo inside HTML (optional)
-      img.alt = name;
-      img.className = "w-full h-32 object-cover rounded";
-      const title = document.createElement("div");
-      title.textContent = name;
-      title.className = "text-center font-semibold";
-
-      tile.appendChild(img);
-      tile.appendChild(title);
-
-      tile.addEventListener("click", () => openGame(file, name));
-
-      grid.appendChild(tile);
-    });
-
-  } catch (err) {
-    console.error("Failed to load games:", err);
+    games = await res.json();
+    renderGames();
+  } catch (e) {
+    console.error("Failed to fetch games:", e);
   }
 }
 
-// Open game overlay
-function openGame(file, name) {
-  playOverlay.classList.remove("hidden");
-  playFrame.src = `/games/game_uploads/${file}`;
-  playTitle.textContent = name;
-  openNewTab.onclick = () => window.open(`/games/game_uploads/${file}`, "_blank");
+// Render game tiles
+function renderGames() {
+  grid.innerHTML = "";
+  const filtered = games.filter(g => g.toLowerCase().includes(searchInput.value.toLowerCase()));
+  if (filtered.length === 0) {
+    document.getElementById("empty").classList.remove("hidden");
+    return;
+  }
+  document.getElementById("empty").classList.add("hidden");
+
+  filtered.forEach(file => {
+    const name = file.replace(/\.html$/, "");
+    const tile = document.createElement("div");
+    tile.className = "bg-slate-800 rounded-lg p-2 cursor-pointer hover:bg-slate-700 transition flex flex-col items-center";
+    
+    // Use image inside HTML if present
+    const img = document.createElement("img");
+    img.src = `/games/game_uploads/${file}`;
+    img.alt = name;
+    img.className = "w-full h-32 object-cover rounded-lg mb-2";
+    
+    const title = document.createElement("span");
+    title.textContent = name;
+    title.className = "font-semibold text-slate-100 text-center";
+    
+    tile.appendChild(img);
+    tile.appendChild(title);
+    
+    tile.addEventListener("click", () => {
+      playTitle.textContent = name;
+      playFrame.src = `/games/game_uploads/${file}`;
+      playOverlay.classList.remove("hidden");
+    });
+
+    grid.appendChild(tile);
+  });
 }
 
-// Close overlay
-backBtn.onclick = () => {
+// Search filter
+searchInput.addEventListener("input", renderGames);
+
+// Overlay buttons
+backBtn.addEventListener("click", () => {
   playOverlay.classList.add("hidden");
   playFrame.src = "";
-};
-
-// Search functionality
-searchInput.addEventListener("input", () => {
-  const term = searchInput.value.toLowerCase();
-  Array.from(grid.children).forEach(tile => {
-    const title = tile.querySelector("div").textContent.toLowerCase();
-    tile.style.display = title.includes(term) ? "flex" : "none";
-  });
+});
+openNewTab.addEventListener("click", () => {
+  window.open(playFrame.src, "_blank");
 });
 
-// Initial load
-loadGames();
+// Initial fetch
+fetchGames();

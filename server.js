@@ -18,10 +18,7 @@ if (!fs.existsSync(uploadFolder)) fs.mkdirSync(uploadFolder, { recursive: true }
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadFolder),
-  filename: (req, file, cb) => {
-    // Keep original filename
-    cb(null, file.originalname);
-  }
+  filename: (req, file, cb) => cb(null, file.originalname),
 });
 const upload = multer({ storage });
 
@@ -29,6 +26,7 @@ const upload = multer({ storage });
 app.use("/chat", express.static(path.join(__dirname, "public/chat")));
 app.use("/games", express.static(path.join(__dirname, "public/games")));
 app.use("/css", express.static(path.join(__dirname, "public/css")));
+app.use("/games/game_uploads", express.static(uploadFolder));
 
 // -------------------- Chat Routes --------------------
 app.get("/chat", (req, res) => {
@@ -43,11 +41,10 @@ app.get("/games", (req, res) => {
   res.sendFile(path.join(__dirname, "public/games/index.html"));
 });
 
-// Return JSON list of uploaded games
+// Returns a JSON list of uploaded HTML game files
 app.get("/games/list", (req, res) => {
   fs.readdir(uploadFolder, (err, files) => {
     if (err) return res.status(500).json({ error: "Failed to read game uploads" });
-    // Filter for .html only
     const htmlFiles = files.filter(f => f.endsWith(".html"));
     res.json(htmlFiles);
   });
@@ -61,7 +58,7 @@ app.post("/games/upload", upload.single("gameFile"), (req, res) => {
   res.json({ success: true, filename: req.file.filename });
 });
 
-// -------------------- Default route --------------------
+// Default route
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public/chat/index.html"));
 });

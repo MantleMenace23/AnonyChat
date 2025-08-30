@@ -1,86 +1,71 @@
-const grid = document.getElementById("grid");
-const emptyMsg = document.getElementById("empty");
-const playOverlay = document.getElementById("playOverlay");
-const playFrame = document.getElementById("playFrame");
-const playTitle = document.getElementById("playTitle");
-const backBtn = document.getElementById("backBtn");
-const openNewTab = document.getElementById("openNewTab");
-const searchInput = document.getElementById("search");
+const express = require("express");
+const http = require("http");
+const path = require("path");
+const fs = require("fs");
+const { Server } = require("socket.io");
+const multer = require("multer");
 
-let allGames = [];
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
 
-// Fetch all game HTML files from the uploads folder
-async function loadGames() {
-  try {
-    const res = await fetch("/games/game_uploads/");
-    const files = await res.json();
+const PORT = process.env.PORT || 10000;
 
-    const htmlFiles = files.filter(f => f.endsWith(".html"));
+// Serve static files
+app.use("/chat", express.static(path.join(__dirname, "public/chat")));
+app.use("/games", express.static(path.join(__dirname, "public/games")));
+app.use("/css", express.static(path.join(__dirname, "public/css")));
 
-    if (!htmlFiles.length) {
-      emptyMsg.classList.remove("hidden");
-      return;
-    }
+// Chat routes
+app.get("/chat", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/chat/index.html"));
+});
 
-    const gameData = await Promise.all(
-      htmlFiles.map(async file => {
-        const html = await fetch(`/games/game_uploads/${file}`).then(r => r.text());
-        const doc = new DOMParser().parseFromString(html, "text/html");
-        const name = doc.querySelector("meta[name='game-name']")?.content || "Unnamed Game";
-        const cover = doc.querySelector("meta[name='game-cover']")?.content || "";
-        return { file, name, cover };
-      })
-    );
+app.get("/chat/room", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/chat/chat.html"));
+});
 
-    allGames = gameData;
-    renderGames(allGames);
+// Socket.io chat logic
+io.on("connection", (socket) => {
+  console.log("A user connected");
 
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-// Render the game tiles
-function renderGames(games) {
-  grid.innerHTML = "";
-  if (!games.length) {
-    emptyMsg.classList.remove("hidden");
-    return;
-  }
-  emptyMsg.classList.add("hidden");
-
-  games.forEach(game => {
-    const gameTile = document.createElement("div");
-    gameTile.className = "bg-slate-800 rounded-lg overflow-hidden shadow-lg cursor-pointer hover:scale-105 transition transform";
-    gameTile.innerHTML = `
-      ${game.cover ? `<img src="${game.cover}" class="w-full h-40 object-cover">` : ''}
-      <div class="p-2">
-        <h3 class="font-semibold text-lg text-white">${game.name}</h3>
-      </div>
-    `;
-    gameTile.addEventListener("click", () => {
-      playTitle.textContent = game.name;
-      playFrame.src = `/games/game_uploads/${game.file}`;
-      playOverlay.classList.remove("hidden");
-    });
-    grid.appendChild(gameTile);
+  socket.on("join", (username) => {
+    socket.username = username;
+    socket.broadcast.emit("user-joined", username);
   });
-}
 
-// Search filtering
-searchInput.addEventListener("input", () => {
-  const term = searchInput.value.toLowerCase();
-  const filtered = allGames.filter(g => g.name.toLowerCase().includes(term));
-  renderGames(filtered);
+  socket.on("send-message", ({ sender, message }) => {
+    io.emit("receive-message", { sender, message });
+  });
+
+  socket.on("disconnect", () => {
+    if (socket.username) {
+      socket.broadcast.emit("user-left", socket.username);
+    }
+  });
 });
 
-// Close overlay
-backBtn.addEventListener("click", () => {
-  playOverlay.classList.add("hidden");
-  playFrame.src = "";
-});
-openNewTab.addEventListener("click", () => {
-  window.open(playFrame.src, "_blank");
+// Games routes
+app.get("/games", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/games/index.html"));
 });
 
-loadGames();
+// New API route: list all game HTML files in game_uploads
+app.get("/games/list", (req, res) => {
+  const uploadsDir = path.join(__dirname, "public/games/game_uploads");
+  fs.readdir(uploadsDir, (err, files) => {
+    if (err) return res.json([]);
+    // Only include .html files
+    const htmlFiles = files.filter(f => f.endsWith(".html"));
+    res.json(htmlFiles);
+  });
+});
+
+// Default route
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/chat/index.html"));
+});
+
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});

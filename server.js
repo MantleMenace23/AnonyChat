@@ -10,92 +10,63 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 const PORT = process.env.PORT || 10000;
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "admin123";
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "changeme";
 
-// Multer setup for file uploads
+// -------------------- File Upload Setup --------------------
+const uploadFolder = path.join(__dirname, "public/games/game_uploads");
+if (!fs.existsSync(uploadFolder)) fs.mkdirSync(uploadFolder, { recursive: true });
+
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, "public/chat/uploads"));
-  },
-  filename: function (req, file, cb) {
-    const unique = Date.now() + "-" + file.originalname;
-    cb(null, unique);
-  },
+  destination: (req, file, cb) => cb(null, uploadFolder),
+  filename: (req, file, cb) => {
+    // Keep original filename
+    cb(null, file.originalname);
+  }
 });
 const upload = multer({ storage });
 
-// Serve static folders
+// -------------------- Serve static files --------------------
 app.use("/chat", express.static(path.join(__dirname, "public/chat")));
 app.use("/games", express.static(path.join(__dirname, "public/games")));
 app.use("/css", express.static(path.join(__dirname, "public/css")));
 
-// Middleware to detect domain and serve correct site
-app.use((req, res, next) => {
-  const host = req.headers.host;
-  req.isChat = host.includes("anonychat.xyz") && !host.startsWith("games.");
-  req.isGames = host.startsWith("games.");
-  next();
+// -------------------- Chat Routes --------------------
+app.get("/chat", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/chat/index.html"));
 });
-
-// Chat routes
-app.get("/", (req, res) => {
-  if (req.isChat) {
-    res.sendFile(path.join(__dirname, "public/chat/index.html"));
-  } else if (req.isGames) {
-    res.sendFile(path.join(__dirname, "public/games/index.html"));
-  } else {
-    res.status(404).send("Unknown domain");
-  }
-});
-
 app.get("/chat/room", (req, res) => {
-  if (req.isChat) {
-    res.sendFile(path.join(__dirname, "public/chat/chat.html"));
-  } else {
-    res.status(404).send("Not found");
-  }
+  res.sendFile(path.join(__dirname, "public/chat/chat.html"));
 });
 
-// File upload for chat
-app.post("/chat/upload", upload.single("file"), (req, res) => {
-  if (!req.file) return res.status(400).send("No file uploaded");
-  res.json({
-    filename: req.file.filename,
-    url: `/chat/uploads/${req.file.filename}`,
-  });
+// -------------------- Games Routes --------------------
+app.get("/games", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/games/index.html"));
 });
 
-// Serve game HTML dynamically
-app.get("/games/game_uploads/:file", (req, res) => {
-  if (!req.isGames) return res.status(404).send("Not found");
-  const filePath = path.join(__dirname, "public/games/game_uploads", req.params.file);
-  if (fs.existsSync(filePath)) {
-    res.sendFile(filePath);
-  } else {
-    res.status(404).send("Game not found");
-  }
-});
-
-// API to list games dynamically
+// Return JSON list of uploaded games
 app.get("/games/list", (req, res) => {
-  if (!req.isGames) return res.status(404).send("Not found");
-  const dir = path.join(__dirname, "public/games/game_uploads");
-  const files = fs.readdirSync(dir).filter(f => f.endsWith(".html"));
-  const games = files.map(file => {
-    const html = fs.readFileSync(path.join(dir, file), "utf8");
-    // Extract title and image from HTML meta tags
-    const titleMatch = html.match(/<title>(.*?)<\/title>/);
-    const imgMatch = html.match(/<img.*?src="(.*?)"/);
-    return {
-      file,
-      title: titleMatch ? titleMatch[1] : "Untitled",
-      image: imgMatch ? imgMatch[1] : "",
-    };
+  fs.readdir(uploadFolder, (err, files) => {
+    if (err) return res.status(500).json({ error: "Failed to read game uploads" });
+    // Filter for .html only
+    const htmlFiles = files.filter(f => f.endsWith(".html"));
+    res.json(htmlFiles);
   });
-  res.json(games);
 });
 
-// Socket.io chat logic
+// Admin upload route
+app.post("/games/upload", upload.single("gameFile"), (req, res) => {
+  const token = req.headers["x-admin-token"];
+  if (token !== ADMIN_TOKEN) return res.status(403).json({ error: "Invalid admin token" });
+  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+  res.json({ success: true, filename: req.file.filename });
+});
+
+// -------------------- Default route --------------------
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/chat/index.html"));
+});
+
+// -------------------- Socket.io Chat --------------------
 io.on("connection", (socket) => {
   console.log("A user connected");
 
@@ -108,18 +79,10 @@ io.on("connection", (socket) => {
     io.emit("receive-message", { sender, message });
   });
 
-  socket.on("send-file", ({ sender, file }) => {
-    io.emit("receive-file", { sender, file });
-  });
-
   socket.on("disconnect", () => {
-    if (socket.username) {
-      socket.broadcast.emit("user-left", socket.username);
-    }
+    if (socket.username) socket.broadcast.emit("user-left", socket.username);
   });
 });
 
-// Start server
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// -------------------- Start Server --------------------
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

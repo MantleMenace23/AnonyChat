@@ -4,34 +4,50 @@ const app = express();
 const http = require("http").createServer(app);
 const io = require("socket.io")(http);
 
-// Serve static files from public
+// Serve all static files from public
 app.use(express.static(path.join(__dirname, "public")));
 
-// Serve chat index at root
+// ---------- ROUTES ----------
+
+// Chat main page
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.sendFile(path.join(__dirname, "public", "chat", "index.html"));
 });
 
-// Optional: serve chat.html explicitly
+// Chat alternative page if needed
 app.get("/chat", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "chat.html"));
+  res.sendFile(path.join(__dirname, "public", "chat", "chat.html"));
 });
 
-// Socket.io logic (unchanged)
+// Games main page
+app.get("/games", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "games", "index.html"));
+});
+
+// Optional: serve other static assets inside chat or games folders
+app.use("/chat", express.static(path.join(__dirname, "public", "chat")));
+app.use("/games", express.static(path.join(__dirname, "public", "games")));
+
+// ---------- SOCKET.IO FOR CHAT ----------
+
 let users = {};
+
 io.on("connection", (socket) => {
   let userName;
 
+  // User joins chat
   socket.on("join", (name) => {
     userName = name;
     users[socket.id] = userName;
     io.emit("user-joined", userName);
   });
 
+  // User sends message
   socket.on("send-message", ({ sender, message }) => {
     io.emit("receive-message", { sender, message });
   });
 
+  // User disconnects
   socket.on("disconnect", () => {
     if (userName) {
       io.emit("user-left", userName);
@@ -39,6 +55,8 @@ io.on("connection", (socket) => {
     }
   });
 });
+
+// ---------- START SERVER ----------
 
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => console.log(`Server running on port ${PORT}`));

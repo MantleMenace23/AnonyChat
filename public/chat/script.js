@@ -1,96 +1,121 @@
+// =======================
+// Chat variables & DOM
+// =======================
 const socket = io();
 
-const loginDiv = document.getElementById("login");
-const chatDiv = document.getElementById("chat");
-const joinBtn = document.getElementById("joinBtn");
-const sendBtn = document.getElementById("sendBtn");
-const nameInput = document.getElementById("nameInput");
-const roomInput = document.getElementById("roomInput");
-const messageInput = document.getElementById("messageInput");
 const chatBox = document.getElementById("chatBox");
-const roomTitle = document.getElementById("roomTitle");
+const input = document.getElementById("msg");
+const form = document.getElementById("composerForm");
 const fileInput = document.getElementById("fileInput");
-const sendFileBtn = document.getElementById("sendFileBtn");
-const colorSelect = document.getElementById("colorSelect");
+const uploadOverlay = document.getElementById("uploadOverlay");
+const uploadStatus = document.getElementById("uploadStatus");
+const uploadProgress = document.getElementById("uploadProgress");
+const cancelUploadBtn = document.getElementById("cancelUploadBtn");
+const leaveBtn = document.getElementById("leaveBtn");
+const presenceList = document.getElementById("presenceList");
+const meta = document.getElementById("meta");
+const roomTitle = document.getElementById("roomTitle");
 
-let roomCode = "";
-let name = "";
-let textColor = colorSelect.value;
+// =======================
+// User Setup
+// =======================
+let userName = prompt("Enter your name:") || "Anonymous";
+socket.emit("join", userName);
 
-// Disable autocomplete
-[nameInput, roomInput, messageInput].forEach(input => input.setAttribute("autocomplete", "off"));
-
-// Join room
-joinBtn.addEventListener("click", joinRoom);
-function joinRoom() {
-  name = nameInput.value.trim();
-  roomCode = roomInput.value.trim();
-  if (!name || !roomCode) return;
-
-  socket.emit("joinRoom", { roomCode, name });
-
-  loginDiv.classList.add("hidden");
-  chatDiv.classList.remove("hidden");
-  roomTitle.textContent = `Room: ${roomCode}`;
-  messageInput.focus();
-}
-
-// Send chat message
-sendBtn.addEventListener("click", sendMessage);
-function sendMessage() {
-  const msg = messageInput.value.trim();
-  if (!msg) return;
-
-  socket.emit("chatMessage", { roomCode, msg, color: textColor });
-  messageInput.value = "";
-  messageInput.focus();
-}
-
-// Send file
-sendFileBtn.addEventListener("click", async () => {
-  if (!fileInput.files.length) return;
-
-  const file = fileInput.files[0];
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const res = await fetch("/upload", { method: "POST", body: formData });
-  const data = await res.json();
-
-  socket.emit("chatMessage", { roomCode, msg: data.url, color: textColor });
-  fileInput.value = "";
+// =======================
+// Send Message
+// =======================
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const message = input.value.trim();
+  if (!message) return;
+  socket.emit("send-message", { sender: userName, message });
+  input.value = "";
 });
 
-// Change text color
-colorSelect.addEventListener("change", () => { textColor = colorSelect.value; });
-
-// Enter key handling
-messageInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
-roomInput.addEventListener("keydown", (e) => { if (e.key === "Enter") joinRoom(); });
-nameInput.addEventListener("keydown", (e) => { if (e.key === "Enter") joinRoom(); });
-
-// Receive chat history
-socket.on("chatHistory", (messages) => {
-  chatBox.innerHTML = "";
-  messages.forEach((message) => addMessage(message.sender, message.text, message.color));
-});
-
-// Receive new messages
-socket.on("chatMessage", (message) => addMessage(message.sender, message.text, message.color));
-
-// Add message
-function addMessage(sender, text, color) {
-  const div = document.createElement("div");
-  div.classList.add("message");
-  const appliedColor = color || "#ffcc00";
-
-  if (text.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
-    div.innerHTML = `<span class="sender">${sender}:</span><br><img src="${text}" style="max-width:100%; border-radius:8px;">`;
-  } else {
-    div.innerHTML = `<span class="sender">${sender}:</span> <span style="color:${appliedColor}">${text}</span>`;
-  }
-
-  chatBox.appendChild(div);
+// =======================
+// Receive Messages
+// =======================
+socket.on("receive-message", ({ sender, message }) => {
+  const msgDiv = document.createElement("div");
+  msgDiv.classList.add("message");
+  msgDiv.innerHTML = `<span class="sender">${sender}:</span> ${message}`;
+  chatBox.appendChild(msgDiv);
   chatBox.scrollTop = chatBox.scrollHeight;
-  messageInput.focus();
+});
+
+// =======================
+// User join/leave
+// =======================
+socket.on("user-joined", (name) => {
+  const notice = document.createElement("div");
+  notice.classList.add("message");
+  notice.innerHTML = `<em>${name} joined the chat</em>`;
+  chatBox.appendChild(notice);
+  chatBox.scrollTop = chatBox.scrollHeight;
+  updatePresence(name, true);
+});
+
+socket.on("user-left", (name) => {
+  const notice = document.createElement("div");
+  notice.classList.add("message");
+  notice.innerHTML = `<em>${name} left the chat</em>`;
+  chatBox.appendChild(notice);
+  chatBox.scrollTop = chatBox.scrollHeight;
+  updatePresence(name, false);
+});
+
+// =======================
+// Presence / Users List
+// =======================
+let users = [];
+
+function updatePresence(name, joined) {
+  if (joined) {
+    users.push(name);
+  } else {
+    users = users.filter(u => u !== name);
+  }
+  renderPresence();
 }
+
+function renderPresence() {
+  presenceList.innerHTML = "";
+  users.forEach(u => {
+    const div = document.createElement("div");
+    div.textContent = u;
+    presenceList.appendChild(div);
+  });
+}
+
+// =======================
+// Leave Room
+// =======================
+leaveBtn.addEventListener("click", () => {
+  socket.disconnect();
+  chatBox.innerHTML += `<div class="message"><em>You left the chat</em></div>`;
+});
+
+// =======================
+// File upload (optional)
+// =======================
+fileInput.addEventListener("change", () => {
+  if (fileInput.files.length === 0) return;
+  const file = fileInput.files[0];
+  uploadOverlay.classList.remove("hidden");
+  uploadStatus.textContent = `Uploading ${file.name}...`;
+  let progress = 0;
+  const interval = setInterval(() => {
+    progress += 10;
+    uploadProgress.value = progress;
+    if (progress >= 100) {
+      clearInterval(interval);
+      uploadStatus.textContent = "Upload complete!";
+      setTimeout(() => {
+        uploadOverlay.classList.add("hidden");
+        uploadProgress.value = 0;
+        fileInput.value = "";
+      }, 500);
+    }
+  }, 100);
+});

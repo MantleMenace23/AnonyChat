@@ -11,34 +11,49 @@ const io = new Server(server);
 
 // ===== Multer setup for file uploads =====
 const uploadDir = path.join(__dirname, "public", "chat", "uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) =>
-    cb(null, Date.now() + "-" + file.originalname),
+  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
 });
-
 const upload = multer({ storage });
 
 // ===== Middleware =====
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/chat/uploads", express.static(uploadDir));
 
+// ===== Domain-based routing =====
+app.use((req, res, next) => {
+  const host = req.headers.host;
+
+  if (host.startsWith("games.")) {
+    // games.anonychat.xyz
+    req.isGameSite = true;
+  } else {
+    // anonychat.xyz
+    req.isChatSite = true;
+  }
+  next();
+});
+
 // ===== Routes =====
-// Main index for chat
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "chat", "index.html"));
+  if (req.isGameSite) {
+    res.sendFile(path.join(__dirname, "public", "games", "index.html"));
+  } else {
+    res.sendFile(path.join(__dirname, "public", "chat", "index.html"));
+  }
 });
 
-// Specific chat room
 app.get("/chat/:room", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "chat", "chat.html"));
+  if (req.isChatSite) {
+    res.sendFile(path.join(__dirname, "public", "chat", "chat.html"));
+  } else {
+    res.status(404).send("Not Found");
+  }
 });
 
-// File upload
+// ===== File upload for chat =====
 app.post("/upload", upload.single("file"), (req, res) => {
   if (!req.file) return res.status(400).send("No file uploaded.");
   const fileUrl = "/chat/uploads/" + req.file.filename;

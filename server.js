@@ -1,30 +1,37 @@
 const express = require("express");
+const path = require("path");
 const app = express();
 const http = require("http").createServer(app);
 const io = require("socket.io")(http);
 
-// Serve public folder
-app.use(express.static("public"));
+// Serve static files from public
+app.use(express.static(path.join(__dirname, "public")));
 
-// Track connected users
+// Serve chat index at root
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// Optional: serve chat.html explicitly
+app.get("/chat", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "chat.html"));
+});
+
+// Socket.io logic (unchanged)
 let users = {};
-
 io.on("connection", (socket) => {
   let userName;
 
-  // User joins
   socket.on("join", (name) => {
     userName = name;
     users[socket.id] = userName;
     io.emit("user-joined", userName);
   });
 
-  // Send messages
   socket.on("send-message", ({ sender, message }) => {
     io.emit("receive-message", { sender, message });
   });
 
-  // Disconnect
   socket.on("disconnect", () => {
     if (userName) {
       io.emit("user-left", userName);
@@ -33,6 +40,5 @@ io.on("connection", (socket) => {
   });
 });
 
-// Start server
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Chat server running on port ${PORT}`));
+http.listen(PORT, () => console.log(`Server running on port ${PORT}`));

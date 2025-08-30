@@ -1,120 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AnonyChat — Join</title>
-  <link rel="stylesheet" href="style.css">
-  <meta name="description" content="Join AnonyChat rooms. Files & images supported." />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AnonyChat Lobby</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #1e1e1e; /* soft black/grey background */
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+
+        .container {
+            background: #2b2b2b;
+            padding: 2rem;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 400px; /* controls overall size of the form */
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0,0,0,0.6);
+        }
+
+        h1 {
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+
+        input, button {
+            width: 100%; /* align all widths */
+            padding: 1rem; /* consistent height */
+            border-radius: 12px; /* smooth rounded corners */
+            font-size: 1rem;
+            box-sizing: border-box; /* prevents padding from breaking alignment */
+            display: block;
+        }
+
+        input {
+            margin-bottom: 1rem;
+            border: 1px solid #444;
+            background: #222;
+            color: white;
+        }
+
+        button {
+            background: linear-gradient(90deg, #2196f3, #21cbf3);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+            button:hover {
+                transform: scale(1.05);
+                box-shadow: 0 0 15px rgba(33, 203, 243, 0.6);
+            }
+    </style>
 </head>
 <body>
-  <div class="page-center" id="page">
-    <header class="header">
-      <h1 class="logo">AnonyChat</h1>
-      <p class="tag">Ephemeral rooms • Images & file sharing • No account needed</p>
-    </header>
-
-    <main class="card" role="main" aria-labelledby="joinTitle">
-      <h2 id="joinTitle" class="card-title">Join a Room</h2>
-
-      <p class="card-desc">Enter a display name and the room code to join. If the room doesn’t exist it will be created automatically.</p>
-
-      <form id="joinForm" class="form" autocomplete="off" novalidate>
-        <label class="label" for="name">Display name</label>
-        <input id="name" class="input" name="name" type="text" placeholder="Your display name" maxlength="48" required>
-
-        <label class="label" for="room">Room code</label>
-        <input id="room" class="input" name="room" type="text" placeholder="Room code (e.g. party123)" maxlength="64" required>
-
-        <div class="row">
-          <button id="joinBtn" type="submit" class="btn btn-primary">Join Room</button>
-          <button id="clearBtn" type="button" class="btn btn-ghost">Clear</button>
-        </div>
-
-        <p id="error" class="form-error" role="status" aria-live="polite" hidden></p>
-      </form>
-
-      <div class="foot">
-        <small class="muted">Names and most recently used room are stored locally on your browser.</small>
-      </div>
-    </main>
-
-    <footer class="footer muted">AnonyChat — files kept for limited time</footer>
-  </div>
-
-  <script>
-  (function () {
-    // Elements
-    const joinForm = document.getElementById('joinForm');
-    const nameIn = document.getElementById('name');
-    const roomIn = document.getElementById('room');
-    const errorEl = document.getElementById('error');
-    const clearBtn = document.getElementById('clearBtn');
-
-    // localStorage keys
-    const LS_NAME = 'anonychat_name';
-    const LS_ROOM = 'anonychat_room';
-
-    // Prefill from localStorage
-    try {
-      const sName = localStorage.getItem(LS_NAME);
-      const sRoom = localStorage.getItem(LS_ROOM);
-      if (sName) nameIn.value = sName;
-      if (sRoom) roomIn.value = sRoom;
-    } catch (e) { /* ignore */ }
-
-    function showError(msg) {
-      if (!msg) { errorEl.hidden = true; errorEl.textContent = ''; return; }
-      errorEl.textContent = msg;
-      errorEl.hidden = false;
-    }
-
-    function isValidCode(s) {
-      if (!s) return false;
-      if (/\s/.test(s)) return false;
-      return /^[A-Za-z0-9_-]{1,64}$/.test(s);
-    }
-
-    function buildQuery(params) {
-      return Object.keys(params).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(String(params[k] == null ? '' : params[k]))).join('&');
-    }
-
-    joinForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      showError('');
-
-      const name = nameIn.value.trim();
-      const room = roomIn.value.trim();
-
-      if (!name) { showError('Please enter a display name.'); nameIn.focus(); return; }
-      if (!room) { showError('Please enter a room code.'); roomIn.focus(); return; }
-      if (!isValidCode(room)) { showError('Room code must be short, no spaces, only letters/numbers/_/- allowed.'); roomIn.focus(); return; }
-
-      // Save for convenience
-      try {
-        localStorage.setItem(LS_NAME, name);
-        localStorage.setItem(LS_ROOM, room);
-      } catch (err) { /* ignore */ }
-
-      // Redirect to chat. If the server needs creation, server auto-creates on join.
-      const qs = buildQuery({ name, room });
-      window.location.href = 'chat.html?' + qs;
-    });
-
-    clearBtn.addEventListener('click', () => {
-      nameIn.value = '';
-      roomIn.value = '';
-      showError('');
-      try {
-        localStorage.removeItem(LS_NAME);
-        localStorage.removeItem(LS_ROOM);
-      } catch (err) {}
-      nameIn.focus();
-    });
-
-    // allow Enter to submit, focus name field
-    nameIn.focus();
-  })();
-  </script>
+    <div class="container">
+        <h1>Join a Chat Room</h1>
+        <form action="/chat/room" method="GET">
+            <input type="text" name="username" placeholder="Enter your name" required />
+            <input type="text" name="room" placeholder="Enter room code" required />
+            <button type="submit">Join / Create</button>
+        </form>
+    </div>
 </body>
 </html>

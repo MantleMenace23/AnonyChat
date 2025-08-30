@@ -1,64 +1,192 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/chat.css">
-<!-- Slick Tailwind switch button for Chat → Games -->
-<a href="https://games.anonychat.xyz" 
-   class="fixed top-4 left-4 z-50 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg shadow-lg font-semibold transition flex items-center gap-2">
-   🎮 Games
-</a>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AnonyChat - Room</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #1a1a1a;
+      color: white;
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
 
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AnonyChat — Chat</title>
-  <link rel="stylesheet" href="style.css">
-  <meta name="description" content="AnonyChat chat room" />
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      max-width: 700px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 15px;
+      background: #2a2a2a;
+      border-radius: 12px;
+      margin-bottom: 15px;
+    }
+
+    .message {
+      padding: 10px;
+      margin-bottom: 8px;
+      background: #333;
+      border-radius: 8px;
+      word-wrap: break-word;
+    }
+
+    .message strong {
+      color: #66aaff;
+    }
+
+    .input-container {
+      display: flex;
+      gap: 10px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      outline: none;
+      background: #333;
+      color: white;
+      font-size: 15px;
+    }
+
+    button, label.upload-btn {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 15px;
+      background: linear-gradient(135deg, #00c6ff, #0072ff);
+      color: white;
+      transition: opacity 0.2s ease-in-out;
+      text-align: center;
+      display: inline-block;
+    }
+
+    button:hover, label.upload-btn:hover {
+      opacity: 0.85;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .file-container {
+      margin-top: 10px;
+      display: flex;
+      justify-content: flex-start;
+    }
+
+    .file-container label {
+      width: 100%;
+      text-align: center;
+    }
+
+    img.preview {
+      max-width: 200px;
+      border-radius: 8px;
+      margin-top: 5px;
+      display: block;
+    }
+  </style>
 </head>
 <body>
-  <div class="chat-shell">
-    <header class="chat-header">
-      <div>
-        <h1 id="roomTitle">Room</h1>
-        <div id="meta" class="muted small"></div>
-      </div>
-      <div class="header-actions">
-        <button id="leaveBtn" class="btn btn-ghost">Leave</button>
-      </div>
-    </header>
+  <div class="chat-container">
+    <div id="messages" class="messages"></div>
 
-    <main class="chat-main">
-      <section id="chatbox" class="chatbox" role="log" aria-live="polite"></section>
+    <div class="input-container">
+      <input id="messageInput" type="text" placeholder="Type a message..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
 
-      <aside id="presence" class="presence" aria-labelledby="presenceTitle">
-        <h3 id="presenceTitle" class="visually-hidden">People in room</h3>
-        <div id="presenceList" class="presence-list"></div>
-      </aside>
-    </main>
-
-    <footer class="composer">
-      <form id="composerForm" class="composer-form" autocomplete="off">
-        <input id="msg" class="composer-input" type="text" placeholder="Type your message..." maxlength="5000" autocomplete="off" />
-        <label class="file-label" for="fileInput" title="Attach a file">📎
-          <input id="fileInput" type="file" hidden />
-        </label>
-        <button type="submit" class="btn btn-primary">Send</button>
-      </form>
-
-      <div id="uploadOverlay" class="upload-overlay hidden" aria-hidden="true">
-        <div class="upload-card">
-          <div id="uploadStatus" class="upload-status">Uploading…</div>
-          <progress id="uploadProgress" value="0" max="100"></progress>
-          <div style="text-align:right; margin-top:8px;">
-            <button id="cancelUploadBtn" class="btn btn-ghost">Cancel</button>
-          </div>
-        </div>
-      </div>
-    </footer>
+    <div class="file-container">
+      <label for="fileInput" class="upload-btn">Upload & Send File</label>
+      <input type="file" id="fileInput" />
+    </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="script.js"></script>
+  <script>
+    const socket = io();
+    const messagesDiv = document.getElementById("messages");
+    const messageInput = document.getElementById("messageInput");
+    const fileInput = document.getElementById("fileInput");
+
+    // Send text message
+    function sendMessage() {
+      const msg = messageInput.value.trim();
+      if (msg) {
+        socket.emit("send-message", { sender: "You", message: msg });
+        addMessage("You", msg);
+        messageInput.value = "";
+      }
+    }
+
+    // Press enter to send
+    messageInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendMessage();
+    });
+
+    // Add message to UI
+    function addMessage(sender, text, isFile = false, fileUrl = null) {
+      const div = document.createElement("div");
+      div.classList.add("message");
+
+      if (isFile) {
+        div.innerHTML = `<strong>${sender}:</strong> <a href="${fileUrl}" target="_blank" download>${text}</a>`;
+        if (/\.(jpg|jpeg|png|webp)$/i.test(text)) {
+          const img = document.createElement("img");
+          img.src = fileUrl;
+          img.className = "preview";
+          div.appendChild(img);
+        }
+      } else {
+        div.innerHTML = `<strong>${sender}:</strong> ${text}`;
+      }
+
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // Receive messages
+    socket.on("receive-message", ({ sender, message }) => {
+      addMessage(sender, message);
+    });
+
+    // File upload
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const fileData = reader.result;
+        socket.emit("send-file", {
+          sender: "You",
+          fileName: file.name,
+          fileData,
+        });
+        addMessage("You", file.name, true, fileData);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Receive files
+    socket.on("receive-file", ({ sender, fileName, fileData }) => {
+      addMessage(sender, fileName, true, fileData);
+    });
+  </script>
 </body>
 </html>

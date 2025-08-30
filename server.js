@@ -2,6 +2,8 @@ const express = require("express");
 const http = require("http");
 const path = require("path");
 const { Server } = require("socket.io");
+const multer = require("multer");
+const fs = require("fs");
 
 const app = express();
 const server = http.createServer(app);
@@ -9,20 +11,33 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 10000;
 
-// Serve static files
-app.use("/chat", express.static(path.join(__dirname, "public/chat")));
-app.use("/games", express.static(path.join(__dirname, "public/games")));
-app.use("/css", express.static(path.join(__dirname, "public/css")));
+// -------- FILE UPLOAD SETUP -------- //
+const uploadDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
-// Lobby
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = Date.now() + "-" + file.originalname;
+    cb(null, uniqueName);
+  },
+});
+const upload = multer({ storage });
+
+// -------- STATIC FILES -------- //
+app.use("/uploads", express.static(uploadDir));
+
+// Chat & Lobby
+app.use("/chat", express.static(path.join(__dirname, "public/chat")));
+
+// Games
+app.use("/games", express.static(path.join(__dirname, "public/games")));
+
+// Default route → Lobby
 app.get("/", (req, res) => {
-  // If host is games.anonychat.xyz, serve games
-  if (req.headers.host && req.headers.host.startsWith("games.")) {
-    res.sendFile(path.join(__dirname, "public/games/index.html"));
-  } else {
-    // Normal chat lobby
-    res.sendFile(path.join(__dirname, "public/chat/index.html"));
-  }
+  res.sendFile(path.join(__dirname, "public/chat/index.html"));
 });
 
 // Chat room
@@ -30,26 +45,54 @@ app.get("/chat", (req, res) => {
   res.sendFile(path.join(__dirname, "public/chat/chat.html"));
 });
 
-// Socket.io logic
+// Upload route
+app.post("/upload", upload.single("file"), (req, res) => {
+  if (!req.file) return res.status(400).send("No file uploaded");
+  const fileUrl = `/uploads/${req.file.filename}`;
+  res.json({ fileUrl, originalName: req.file.originalname });
+});
+
+// -------- SOCKET.IO CHAT LOGIC -------- //
 io.on("connection", (socket) => {
-  console.log("A user connected");
+  console.log("User connected");
 
-  socket.on("join", (username) => {
+  // User joins a room
+  socket.on("joinRoom", ({ username, room }) => {
+    socket.join(room);
     socket.username = username;
-    socket.broadcast.emit("user-joined", username);
+    socket.room = room;
+
+    // Notify others
+    socket.to(room).emit("user-joined", username);
   });
 
+  // Text messages
   socket.on("send-message", ({ sender, message }) => {
-    io.emit("receive-message", { sender, message });
+    if (socket.room) {
+      io.to(socket.room).emit("receive-message", { sender, message });
+    }
   });
 
+  // File messages
+  socket.on("send-file", ({ sender, fileUrl, originalName }) => {
+    if (socket.room) {
+      io.to(socket.room).emit("receive-file", {
+        sender,
+        fileUrl,
+        originalName,
+      });
+    }
+  });
+
+  // Disconnect
   socket.on("disconnect", () => {
-    if (socket.username) {
-      socket.broadcast.emit("user-left", socket.username);
+    if (socket.username && socket.room) {
+      socket.to(socket.room).emit("user-left", socket.username);
     }
   });
 });
 
+// -------- START SERVER -------- //
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

@@ -10,9 +10,9 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 // ===== Multer setup for file uploads =====
-const uploadDir = path.join(__dirname, "uploads");
+const uploadDir = path.join(__dirname, "public", "chat", "uploads");
 if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
+  fs.mkdirSync(uploadDir, { recursive: true });
 }
 
 const storage = multer.diskStorage({
@@ -24,22 +24,24 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // ===== Middleware =====
-app.use(express.static(__dirname)); // serves index.html, chat.html, etc.
-app.use("/uploads", express.static(uploadDir)); // serve uploaded files
+app.use(express.static(path.join(__dirname, "public")));
+app.use("/chat/uploads", express.static(uploadDir));
 
 // ===== Routes =====
+// Main index for chat
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
+  res.sendFile(path.join(__dirname, "public", "chat", "index.html"));
 });
 
+// Specific chat room
 app.get("/chat/:room", (req, res) => {
-  res.sendFile(path.join(__dirname, "chat.html"));
+  res.sendFile(path.join(__dirname, "public", "chat", "chat.html"));
 });
 
-// Upload endpoint (for images/files)
+// File upload
 app.post("/upload", upload.single("file"), (req, res) => {
   if (!req.file) return res.status(400).send("No file uploaded.");
-  const fileUrl = "/uploads/" + req.file.filename;
+  const fileUrl = "/chat/uploads/" + req.file.filename;
   res.json({ url: fileUrl });
 });
 

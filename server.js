@@ -1,80 +1,98 @@
-// server.js
-import express from "express";
-import { createServer } from "http";
-import { Server } from "socket.io";
-import fs from "fs";
-import path from "path";
+const express = require("express");
+const http = require("http");
+const path = require("path");
+const { Server } = require("socket.io");
+const multer = require("multer");
+const fs = require("fs");
 
 const app = express();
-const server = createServer(app);
+const server = http.createServer(app);
 const io = new Server(server);
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
-// ===== Middleware & Static Serving =====
-app.use(express.static("public"));
+// -------- FILE UPLOAD SETUP -------- //
+const uploadDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
-// Chat root (default domain)
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = Date.now() + "-" + file.originalname;
+    cb(null, uniqueName);
+  },
+});
+const upload = multer({ storage });
+
+// -------- STATIC FILES -------- //
+app.use("/uploads", express.static(uploadDir));
+
+// Chat & Lobby
+app.use("/chat", express.static(path.join(__dirname, "public/chat")));
+
+// Games
+app.use("/games", express.static(path.join(__dirname, "public/games")));
+
+// Default route → Lobby
 app.get("/", (req, res) => {
-  res.sendFile(path.join(process.cwd(), "public/index.html"));
+  res.sendFile(path.join(__dirname, "public/chat/index.html"));
 });
 
-// -------- Games Subdomain --------
-// Serve games hub page at games.anonychat.xyz
-app.get("/games", (req, res) => {
-  res.sendFile(path.join(process.cwd(), "public/games/index.html"));
+// Chat room
+app.get("/chat", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/chat/chat.html"));
 });
 
-// Serve uploaded games as static files
-app.use("/game_uploads", express.static(path.join(process.cwd(), "public/games/game_uploads")));
-
-// List of uploaded games
-app.get("/list", (req, res) => {
-  const gamesDir = path.join(process.cwd(), "public/games/game_uploads");
-
-  fs.readdir(gamesDir, (err, files) => {
-    if (err) {
-      console.error("Error reading games directory:", err);
-      return res.status(500).json({ error: "Unable to load games" });
-    }
-    const gameFiles = files.filter(f => f.endsWith(".html"));
-    res.json(gameFiles);
-  });
+// Upload route
+app.post("/upload", upload.single("file"), (req, res) => {
+  if (!req.file) return res.status(400).send("No file uploaded");
+  const fileUrl = `/uploads/${req.file.filename}`;
+  res.json({ fileUrl, originalName: req.file.originalname });
 });
 
-// ====== Chat (Socket.io) ======
-let rooms = {};
-
+// -------- SOCKET.IO CHAT LOGIC -------- //
 io.on("connection", (socket) => {
-  console.log("A user connected");
+  console.log("User connected");
 
-  socket.on("joinRoom", ({ room, username, color }) => {
+  // User joins a room
+  socket.on("joinRoom", ({ username, room }) => {
     socket.join(room);
+    socket.username = username;
+    socket.room = room;
 
-    if (!rooms[room]) {
-      rooms[room] = [];
+    // Notify others
+    socket.to(room).emit("user-joined", username);
+  });
+
+  // Text messages
+  socket.on("send-message", ({ sender, message }) => {
+    if (socket.room) {
+      io.to(socket.room).emit("receive-message", { sender, message });
     }
-
-    rooms[room].push({ id: socket.id, username, color });
-
-    io.to(room).emit("userList", rooms[room]);
-    console.log(`${username} joined room: ${room}`);
   });
 
-  socket.on("chatMessage", ({ room, username, message, color }) => {
-    io.to(room).emit("chatMessage", { username, message, color });
+  // File messages
+  socket.on("send-file", ({ sender, fileUrl, originalName }) => {
+    if (socket.room) {
+      io.to(socket.room).emit("receive-file", {
+        sender,
+        fileUrl,
+        originalName,
+      });
+    }
   });
 
+  // Disconnect
   socket.on("disconnect", () => {
-    for (let room in rooms) {
-      rooms[room] = rooms[room].filter(u => u.id !== socket.id);
-      io.to(room).emit("userList", rooms[room]);
+    if (socket.username && socket.room) {
+      socket.to(socket.room).emit("user-left", socket.username);
     }
-    console.log("A user disconnected");
   });
 });
 
-// ===== Start Server =====
+// -------- START SERVER -------- //
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

@@ -3,7 +3,6 @@ const http = require("http");
 const path = require("path");
 const fs = require("fs");
 const { Server } = require("socket.io");
-const multer = require("multer");
 const vhost = require("vhost");
 
 const app = express();
@@ -14,22 +13,16 @@ const PORT = process.env.PORT || 10000;
 const CHAT_DOMAIN = "anonychat.xyz";
 const GAMES_DOMAIN = "games.anonychat.xyz";
 
-// --- Multer storage for game uploads ---
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, "public/games/game_uploads"));
-  },
-  filename: function (req, file, cb) {
-    cb(null, file.originalname);
-  },
-});
-const upload = multer({ storage });
-
 // --- Chat App ---
 const chatApp = express();
 chatApp.use(express.static(path.join(__dirname, "public/chat")));
 
-// Serve chat rooms correctly
+// Serve lobby join
+chatApp.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/chat/index.html"));
+});
+
+// Serve /chat route
 chatApp.get("/chat", (req, res) => {
   res.sendFile(path.join(__dirname, "public/chat/chat.html"));
 });
@@ -41,22 +34,26 @@ chatApp.get("/chat/*", (req, res) => {
 
 // --- Games App ---
 const gamesApp = express();
-gamesApp.use(express.static(path.join(__dirname, "public/games")));
-gamesApp.use("/game_uploads", express.static(path.join(__dirname, "public/games/game_uploads")));
-gamesApp.use("/game_uploads/images", express.static(path.join(__dirname, "public/games/game_uploads/images")));
+const gamesPath = path.join(__dirname, "public/games");
+const uploadsPath = path.join(gamesPath, "game_uploads");
+const imagesPath = path.join(uploadsPath, "images");
 
-// API to list games
+// Serve static games files
+gamesApp.use(express.static(gamesPath));
+gamesApp.use("/game_uploads", express.static(uploadsPath));
+gamesApp.use("/game_uploads/images", express.static(imagesPath));
+
+// API to list all games (pulled from GitHub files)
 gamesApp.get("/game_list", (req, res) => {
-  const uploadsPath = path.join(__dirname, "public/games/game_uploads");
-  const imagesPath = path.join(uploadsPath, "images");
+  if (!fs.existsSync(uploadsPath)) return res.json([]);
 
   const games = fs.readdirSync(uploadsPath)
     .filter(f => f.endsWith(".html"))
     .map(file => {
       const name = path.parse(file).name;
-      const possibleExtensions = [".png", ".jpg", ".jpeg"];
+      const possibleExt = [".png", ".jpg", ".jpeg"];
       let image = null;
-      for (let ext of possibleExtensions) {
+      for (let ext of possibleExt) {
         const imgPath = path.join(imagesPath, name + ext);
         if (fs.existsSync(imgPath)) {
           image = "/game_uploads/images/" + name + ext;
@@ -67,11 +64,6 @@ gamesApp.get("/game_list", (req, res) => {
     });
 
   res.json(games);
-});
-
-// Upload endpoint for new games
-gamesApp.post("/upload", upload.single("gameFile"), (req, res) => {
-  res.json({ success: true, file: req.file.filename });
 });
 
 // --- Mount vhosts ---

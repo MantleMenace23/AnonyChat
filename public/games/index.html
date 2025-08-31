@@ -2,107 +2,104 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Games | Anonychat</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnonyChat Games</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: #fff;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+    }
+    #search {
+      width: 100%;
+      padding: 10px;
+      margin: 20px 0;
+      font-size: 16px;
+      border-radius: 8px;
+      border: none;
+    }
+    #games {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 20px;
+    }
+    .game-card {
+      background: #222;
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      transition: transform 0.2s;
+    }
+    .game-card:hover {
+      transform: scale(1.05);
+    }
+    .game-card img {
+      width: 100%;
+      border-radius: 8px;
+      max-height: 150px;
+      object-fit: cover;
+    }
+    .game-card a {
+      display: block;
+      margin-top: 10px;
+      color: #4fc3f7;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .game-card a:hover {
+      text-decoration: underline;
+    }
+  </style>
 </head>
-<body class="bg-gray-900 text-white min-h-screen flex flex-col">
-
-  <!-- Header -->
-  <header class="p-4 bg-gray-800 text-center text-2xl font-bold">
-    Games
-  </header>
-
-  <!-- Search -->
-  <div class="p-4">
-    <input 
-      id="searchBar" 
-      type="text" 
-      placeholder="Search games..." 
-      class="w-full p-2 rounded text-black"
-    />
-  </div>
-
-  <!-- Game Grid -->
-  <main class="grid grid-cols-2 md:grid-cols-4 gap-6 p-4" id="gamesGrid">
-    <!-- JS inserts game tiles -->
-  </main>
-
-  <p id="noResults" class="text-center text-gray-400 hidden">No games found.</p>
+<body>
+  <h1>🎮 AnonyChat Games</h1>
+  <input type="text" id="search" placeholder="Search for a game...">
+  <div id="games"></div>
 
   <script>
     async function loadGames() {
       try {
-        const res = await fetch("/game_uploads");
-        const html = await res.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
+        const res = await fetch("/api/games");
+        const games = await res.json();
+        const container = document.getElementById("games");
+        container.innerHTML = "";
 
-        const files = Array.from(doc.querySelectorAll("a"))
-          .map(a => a.getAttribute("href"))
-          .filter(f => f.endsWith(".html"));
+        games.forEach(game => {
+          const card = document.createElement("div");
+          card.className = "game-card";
 
-        const grid = document.getElementById("gamesGrid");
-        grid.innerHTML = "";
+          const img = document.createElement("img");
+          img.src = game.image ? game.image : "https://via.placeholder.com/200x150?text=No+Image";
 
-        files.forEach(file => {
-          const name = file.replace(".html", "");
-          const imgFormats = ["jpg", "jpeg", "png"];
-          let imgSrc = "";
+          const link = document.createElement("a");
+          link.href = game.file;
+          link.textContent = game.name;
 
-          for (let ext of imgFormats) {
-            const possible = `/game_uploads/images/${name}.${ext}`;
-            imgSrc = possible;
-          }
+          card.appendChild(img);
+          card.appendChild(link);
+          container.appendChild(card);
+        });
 
-          const tile = document.createElement("div");
-          tile.className = "bg-gray-800 rounded-xl shadow-lg overflow-hidden gameTile";
-          tile.setAttribute("data-name", name.toLowerCase());
-
-          tile.innerHTML = `
-            <img src="/game_uploads/images/${name}.jpg" onerror="this.src='/game_uploads/images/${name}.jpeg'; this.onerror=null;" alt="${name}" class="w-full h-32 object-cover">
-            <div class="p-3 flex justify-between items-center">
-              <span class="font-semibold">${name}</span>
-              <button onclick="playGame('${file}')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">Play</button>
-            </div>
-          `;
-          grid.appendChild(tile);
+        // Live search
+        document.getElementById("search").addEventListener("input", (e) => {
+          const search = e.target.value.toLowerCase();
+          const cards = document.querySelectorAll(".game-card");
+          cards.forEach(card => {
+            const title = card.querySelector("a").textContent.toLowerCase();
+            card.style.display = title.includes(search) ? "" : "none";
+          });
         });
 
       } catch (err) {
-        console.error("Error loading games", err);
+        console.error("Failed to load games:", err);
       }
     }
-
-    function playGame(file) {
-      const grid = document.getElementById("gamesGrid");
-      const noResults = document.getElementById("noResults");
-
-      grid.innerHTML = `
-        <div class="relative w-full h-screen">
-          <button onclick="loadGames()" class="absolute top-4 left-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded z-10">← Back</button>
-          <iframe src="/game_uploads/${file}" class="w-full h-full border-0"></iframe>
-        </div>
-      `;
-      noResults.classList.add("hidden");
-    }
-
-    document.getElementById("searchBar").addEventListener("input", function() {
-      const query = this.value.toLowerCase();
-      const tiles = document.querySelectorAll(".gameTile");
-      let visibleCount = 0;
-
-      tiles.forEach(tile => {
-        const name = tile.getAttribute("data-name");
-        if (name.includes(query)) {
-          tile.style.display = "block";
-          visibleCount++;
-        } else {
-          tile.style.display = "none";
-        }
-      });
-
-      document.getElementById("noResults").classList.toggle("hidden", visibleCount > 0);
-    });
 
     loadGames();
   </script>

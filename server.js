@@ -25,18 +25,27 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// --- Chat app ---
+// --- Chat App ---
 const chatApp = express();
 chatApp.use(express.static(path.join(__dirname, "public/chat")));
+
+// Serve chat rooms correctly
 chatApp.get("/chat", (req, res) => {
   res.sendFile(path.join(__dirname, "public/chat/chat.html"));
 });
 
-// --- Games app ---
+// Serve any /chat/... route to chat.html
+chatApp.get("/chat/*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/chat/chat.html"));
+});
+
+// --- Games App ---
 const gamesApp = express();
 gamesApp.use(express.static(path.join(__dirname, "public/games")));
+gamesApp.use("/game_uploads", express.static(path.join(__dirname, "public/games/game_uploads")));
+gamesApp.use("/game_uploads/images", express.static(path.join(__dirname, "public/games/game_uploads/images")));
 
-// Dynamic game list API
+// API to list games
 gamesApp.get("/game_list", (req, res) => {
   const uploadsPath = path.join(__dirname, "public/games/game_uploads");
   const imagesPath = path.join(uploadsPath, "images");
@@ -45,7 +54,6 @@ gamesApp.get("/game_list", (req, res) => {
     .filter(f => f.endsWith(".html"))
     .map(file => {
       const name = path.parse(file).name;
-      // Check for matching image
       const possibleExtensions = [".png", ".jpg", ".jpeg"];
       let image = null;
       for (let ext of possibleExtensions) {
@@ -57,10 +65,11 @@ gamesApp.get("/game_list", (req, res) => {
       }
       return { name, file: "/game_uploads/" + file, image };
     });
+
   res.json(games);
 });
 
-// Upload a new game file
+// Upload endpoint for new games
 gamesApp.post("/upload", upload.single("gameFile"), (req, res) => {
   res.json({ success: true, file: req.file.filename });
 });
@@ -69,7 +78,7 @@ gamesApp.post("/upload", upload.single("gameFile"), (req, res) => {
 app.use(vhost(CHAT_DOMAIN, chatApp));
 app.use(vhost(GAMES_DOMAIN, gamesApp));
 
-// --- Socket.IO for chat rooms ---
+// --- Socket.IO for chat ---
 io.on("connection", socket => {
   socket.on("joinRoom", room => {
     socket.join(room);

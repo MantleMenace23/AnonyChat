@@ -1,149 +1,62 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AnonyChat Games</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    /* small utility to ensure overlay sits above everything */
-    .game-overlay { position: fixed; inset: 0; z-index: 9999; display: none; align-items: stretch; justify-content: center; background: rgba(0,0,0,0.9); }
-    .cover-img { width:100%; height:160px; object-fit:cover; border-radius:8px; background:#0b0b0b; }
-  </style>
 </head>
-<body class="bg-gradient-to-b from-slate-900 to-slate-800 text-slate-100 min-h-screen">
+<body class="bg-gray-900 text-white flex flex-col min-h-screen">
+  <!-- Game list -->
+  <div id="game-list" class="grid grid-cols-2 md:grid-cols-4 gap-4 p-6"></div>
 
-  <header class="max-w-6xl mx-auto p-4 flex items-center justify-between">
-    <h1 class="text-2xl font-bold">AnonyChat Games</h1>
-    <a href="https://anonychat.xyz" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-semibold shadow">💬 Chat</a>
-  </header>
-
-  <main class="max-w-6xl mx-auto p-4">
-    <div class="mb-4">
-      <input id="search" placeholder="Search games..." class="w-full px-4 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400" />
-    </div>
-
-    <div id="grid" class="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"></div>
-    <div id="empty" class="text-center text-slate-400 mt-12 hidden">No games uploaded yet.</div>
-  </main>
-
-  <!-- overlay (iframe) -->
-  <div id="overlay" class="game-overlay flex-col">
-    <button id="backBtn" class="fixed top-4 left-4 z-50 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">⬅ Back</button>
-    <iframe id="player" class="w-full h-full border-0" allow="autoplay; fullscreen; encrypted-media; accelerometer; gyroscope; picture-in-picture"></iframe>
+  <!-- Game player -->
+  <div id="game-player" class="hidden w-full h-screen bg-black relative">
+    <button id="back-btn" class="absolute top-4 left-4 bg-gray-700 text-white px-3 py-1 rounded-lg shadow-lg z-50">
+      ← Back
+    </button>
+    <iframe id="game-frame" class="w-full h-full border-none"></iframe>
   </div>
 
   <script>
-    const exts = [".png", ".jpg", ".jpeg", ".webp"];
-    const grid = document.getElementById("grid");
-    const empty = document.getElementById("empty");
-    const search = document.getElementById("search");
-    const overlay = document.getElementById("overlay");
-    const player = document.getElementById("player");
-    const backBtn = document.getElementById("backBtn");
-    let games = [];
-
-    // try HEAD to see if image exists (same-origin so this is allowed)
-    async function findImage(baseName) {
-      for (const ext of exts) {
-        const url = `/games/game_uploads/images/${baseName}${ext}`;
-        try {
-          const res = await fetch(url, { method: "HEAD" });
-          if (res.ok) return url;
-        } catch (e) {
-          // fallback to GET try (some servers block HEAD)
-          try {
-            const r2 = await fetch(url, { method: "GET" });
-            if (r2.ok) return url;
-          } catch (e2) {}
-        }
-      }
-      return null;
-    }
-
     async function loadGames() {
-      try {
-        const res = await fetch("/api/games");
-        if (!res.ok) throw new Error("Failed to fetch /api/games");
-        games = await res.json();
-      } catch (err) {
-        console.error("Failed to load games:", err);
-        empty.textContent = "Failed to load games.";
-        empty.classList.remove("hidden");
-        return;
-      }
+      const res = await fetch("/api/games");
+      const games = await res.json();
+      const list = document.getElementById("game-list");
 
-      // resolve images (in parallel)
-      await Promise.all(games.map(async g => {
-        if (g.image) {
-          // if server already reported an image path, use it
-          g.imageResolved = g.image;
-        } else {
-          const found = await findImage(g.name);
-          g.imageResolved = found;
-        }
-      }));
+      list.innerHTML = "";
 
-      renderGrid();
-    }
-
-    function renderGrid() {
-      grid.innerHTML = "";
-      const q = (search.value || "").toLowerCase();
-      const filtered = games.filter(g => g.name.toLowerCase().includes(q));
-
-      if (filtered.length === 0) {
-        empty.classList.remove("hidden");
-        return;
-      } else {
-        empty.classList.add("hidden");
-      }
-
-      for (const g of filtered) {
+      games.forEach(game => {
         const tile = document.createElement("div");
-        tile.className = "bg-slate-800 rounded-xl p-3 shadow-lg cursor-pointer hover:scale-105 transform transition";
+        tile.className = "bg-gray-800 rounded-lg shadow-lg overflow-hidden hover:scale-105 transition-transform";
 
-        const img = document.createElement("img");
-        img.className = "cover-img mb-3";
-        img.alt = g.name;
-        img.src = g.imageResolved || "/games/default-cover.png";
+        tile.innerHTML = `
+          <img src="${game.image || "https://via.placeholder.com/300x200?text=No+Image"}"
+               alt="${game.name}"
+               class="w-full h-40 object-cover">
+          <div class="p-3 flex justify-between items-center">
+            <span class="text-lg font-semibold">${game.name}</span>
+            <button class="bg-blue-500 px-3 py-1 rounded-lg hover:bg-blue-600">Play</button>
+          </div>
+        `;
 
-        const h = document.createElement("h3");
-        h.className = "text-center font-semibold";
-        h.textContent = g.name;
-
-        tile.appendChild(img);
-        tile.appendChild(h);
-
-        tile.addEventListener("click", () => {
-          openOverlay(g.file);
-        });
-
-        grid.appendChild(tile);
-      }
+        tile.querySelector("button").onclick = () => playGame(game.file);
+        list.appendChild(tile);
+      });
     }
 
-    function openOverlay(filePath) {
-      // filePath is like /games/game_uploads/NAME.html
-      player.src = filePath;
-      overlay.style.display = "flex";
-      document.documentElement.style.overflow = "hidden";
-      document.body.style.overflow = "hidden";
+    function playGame(url) {
+      document.getElementById("game-list").classList.add("hidden");
+      document.getElementById("game-player").classList.remove("hidden");
+      document.getElementById("game-frame").src = url;
     }
 
-    function closeOverlay() {
-      player.src = "about:blank";
-      overlay.style.display = "none";
-      document.documentElement.style.overflow = "";
-      document.body.style.overflow = "";
-    }
+    document.getElementById("back-btn").onclick = () => {
+      document.getElementById("game-frame").src = "";
+      document.getElementById("game-player").classList.add("hidden");
+      document.getElementById("game-list").classList.remove("hidden");
+    };
 
-    backBtn.addEventListener("click", closeOverlay);
-    window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeOverlay(); });
-
-    search.addEventListener("input", renderGrid);
-
-    // initial load
     loadGames();
   </script>
 </body>

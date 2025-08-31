@@ -1,123 +1,67 @@
-const express = require("express");
-const http = require("http");
-const path = require("path");
-const multer = require("multer");
-const fs = require("fs");
-const { Server } = require("socket.io");
+import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
 
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
-
 const PORT = process.env.PORT || 3000;
 
-// ---------- FILE UPLOADS (for games) ----------
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, "public/games/game_uploads"));
-  },
-  filename: (req, file, cb) => {
-    cb(null, file.originalname);
-  },
-});
-const upload = multer({ storage });
+// Resolve paths
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-app.post("/upload", upload.single("gameFile"), (req, res) => {
-  res.send("File uploaded successfully");
+// Static hosting for all of /public
+app.use(express.static(path.join(__dirname, "public")));
+
+// Chat pages
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/chat/index.html"));
 });
 
-// ---------- HOSTNAME-BASED ROUTING ----------
-app.use((req, res, next) => {
-  const host = req.hostname;
-
-  if (host === "anonychat.xyz" || host === "www.anonychat.xyz") {
-    // ----- CHAT SITE -----
-    if (req.path === "/" || req.path === "/index.html") {
-      return res.sendFile(path.join(__dirname, "public/chat/index.html"));
-    }
-    if (req.path === "/chat") {
-      return res.sendFile(path.join(__dirname, "public/chat/chat.html"));
-    }
-    return express.static(path.join(__dirname, "public/chat"))(req, res, next);
-  }
-
-  if (host === "games.anonychat.xyz") {
-    // ----- GAMES SITE -----
-    if (req.path === "/" || req.path === "/index.html") {
-      return res.sendFile(path.join(__dirname, "public/games/index.html"));
-    }
-    return express.static(path.join(__dirname, "public/games"))(req, res, next);
-  }
-
-  return next();
+app.get("/chat", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/chat/chat.html"));
 });
 
-// ---------- SOCKET.IO (chat functionality) ----------
-io.on("connection", (socket) => {
-  console.log("A user connected");
-
-  socket.on("joinRoom", (room, username) => {
-    socket.join(room);
-    console.log(`${username} joined room: ${room}`);
-    io.to(room).emit("message", {
-      user: "System",
-      text: `${username} has joined the room.`,
-    });
-  });
-
-  socket.on("chatMessage", ({ room, user, text, color }) => {
-    io.to(room).emit("message", { user, text, color });
-  });
-
-  socket.on("disconnect", () => {
-    console.log("A user disconnected");
-  });
+// Games main page
+app.get("/games", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/games/index.html"));
 });
 
-// ---------- GAME LIST API (for games page) ----------
+// API endpoint → list all games
 app.get("/api/games", (req, res) => {
-  if (req.hostname !== "games.anonychat.xyz") {
-    return res.status(403).json({ error: "Forbidden" });
-  }
-
   const gamesDir = path.join(__dirname, "public/games/game_uploads");
   const imagesDir = path.join(gamesDir, "images");
 
-  fs.readdir(gamesDir, (err, files) => {
-    if (err) {
-      return res.status(500).json({ error: "Failed to read games directory" });
+  const files = fs.readdirSync(gamesDir).filter(f => f.endsWith(".html"));
+
+  const games = files.map(file => {
+    const name = path.parse(file).name;
+
+    // Match any image type
+    let image = null;
+    const exts = [".jpg", ".jpeg", ".png"];
+    for (const ext of exts) {
+      if (fs.existsSync(path.join(imagesDir, name + ext))) {
+        image = `/games/game_uploads/images/${name + ext}`;
+        break;
+      }
     }
 
-    const games = files
-      .filter((file) => file.endsWith(".html"))
-      .map((file) => {
-        const name = path.parse(file).name;
-        const possibleImages = [
-          `${name}.jpg`,
-          `${name}.jpeg`,
-          `${name}.png`,
-        ];
-
-        let image = null;
-        for (const img of possibleImages) {
-          if (fs.existsSync(path.join(imagesDir, img))) {
-            image = `/games/game_uploads/images/${img}`;
-            break;
-          }
-        }
-
-        return {
-          name,
-          file: `/games/game_uploads/${file}`,
-          image,
-        };
-      });
-
-    res.json(games);
+    return {
+      name,
+      file: `/games/game_uploads/${file}`,
+      image: image || null
+    };
   });
+
+  res.json(games);
 });
 
-// ---------- START SERVER ----------
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Catch-all → 404
+app.use((req, res) => {
+  res.status(404).send("404 Not Found");
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });

@@ -1,78 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AnonyChat Games</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center p-6">
-  <h1 class="text-4xl font-bold mb-6">🎮 AnonyChat Games</h1>
-
-  <!-- Game grid -->
-  <div id="gameGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 w-full"></div>
+<body class="bg-gray-900 text-white flex flex-col min-h-screen">
+  <!-- Game list -->
+  <div id="game-list" class="grid grid-cols-2 md:grid-cols-4 gap-4 p-6"></div>
 
   <!-- Game player -->
-  <div id="gamePlayer" class="hidden relative w-full h-screen">
-    <button id="backButton" class="absolute top-4 left-4 px-4 py-2 bg-gray-800 text-white rounded-lg shadow hover:bg-gray-700">⬅ Back</button>
-    <iframe id="gameFrame" class="w-full h-full border-0"></iframe>
+  <div id="game-player" class="hidden w-full h-screen bg-black relative">
+    <button id="back-btn" class="absolute top-4 left-4 bg-gray-700 text-white px-3 py-1 rounded-lg shadow-lg z-50">
+      ← Back
+    </button>
+    <iframe id="game-frame" class="w-full h-full border-none"></iframe>
   </div>
 
   <script>
     async function loadGames() {
-      const res = await fetch("/games/game_uploads");
-      const text = await res.text();
+      const res = await fetch("/api/games");
+      const games = await res.json();
+      const list = document.getElementById("game-list");
 
-      // Parse HTML directory listing
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(text, "text/html");
-      const links = [...doc.querySelectorAll("a")];
+      list.innerHTML = "";
 
-      const gameFiles = links
-        .map(a => a.getAttribute("href"))
-        .filter(f => f && f.endsWith(".html") && !f.includes("index.html"));
+      games.forEach(game => {
+        const tile = document.createElement("div");
+        tile.className = "bg-gray-800 rounded-lg shadow-lg overflow-hidden hover:scale-105 transition-transform";
 
-      const grid = document.getElementById("gameGrid");
-
-      for (const file of gameFiles) {
-        const name = file.replace(".html", "");
-        const exts = ["jpg", "jpeg", "png"];
-        let imgSrc = "";
-
-        for (const ext of exts) {
-          try {
-            const check = await fetch(`/games/game_uploads/images/${name}.${ext}`);
-            if (check.ok) {
-              imgSrc = `/games/game_uploads/images/${name}.${ext}`;
-              break;
-            }
-          } catch {}
-        }
-
-        const card = document.createElement("div");
-        card.className = "bg-gray-800 rounded-xl shadow-lg p-4 flex flex-col items-center";
-
-        card.innerHTML = `
-          <img src="${imgSrc}" alt="${name}" class="w-full h-40 object-cover rounded-lg mb-3">
-          <h2 class="text-lg font-semibold mb-2">${name}</h2>
-          <button class="px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-500 transition">Play</button>
+        tile.innerHTML = `
+          <img src="${game.image || "https://via.placeholder.com/300x200?text=No+Image"}"
+               alt="${game.name}"
+               class="w-full h-40 object-cover">
+          <div class="p-3 flex justify-between items-center">
+            <span class="text-lg font-semibold">${game.name}</span>
+            <button class="bg-blue-500 px-3 py-1 rounded-lg hover:bg-blue-600">Play</button>
+          </div>
         `;
 
-        card.querySelector("button").addEventListener("click", () => playGame(file));
-        grid.appendChild(card);
-      }
+        tile.querySelector("button").onclick = () => playGame(game.file);
+        list.appendChild(tile);
+      });
     }
 
-    function playGame(file) {
-      document.getElementById("gameGrid").classList.add("hidden");
-      document.getElementById("gamePlayer").classList.remove("hidden");
-      document.getElementById("gameFrame").src = `/games/game_uploads/${file}`;
+    function playGame(url) {
+      document.getElementById("game-list").classList.add("hidden");
+      document.getElementById("game-player").classList.remove("hidden");
+      document.getElementById("game-frame").src = url;
     }
 
-    document.getElementById("backButton").addEventListener("click", () => {
-      document.getElementById("gameFrame").src = "";
-      document.getElementById("gamePlayer").classList.add("hidden");
-      document.getElementById("gameGrid").classList.remove("hidden");
-    });
+    document.getElementById("back-btn").onclick = () => {
+      document.getElementById("game-frame").src = "";
+      document.getElementById("game-player").classList.add("hidden");
+      document.getElementById("game-list").classList.remove("hidden");
+    };
 
     loadGames();
   </script>

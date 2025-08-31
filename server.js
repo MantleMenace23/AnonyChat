@@ -1,41 +1,32 @@
-const express = require("express");
-const http = require("http");
-const path = require("path");
-const { Server } = require("socket.io");
-const multer = require("multer");
-const fs = require("fs");
+import express from "express";
+import http from "http";
+import { Server as SocketIOServer } from "socket.io";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new SocketIOServer(server);
 
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 3000;
 
-// -------- FILE UPLOAD SETUP -------- //
-const uploadDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+// Resolve paths
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = Date.now() + "-" + file.originalname;
-    cb(null, uniqueName);
-  },
-});
-const upload = multer({ storage });
+// --------------------
+// Middleware
+// --------------------
 
-// -------- STATIC FILES -------- //
-app.use("/uploads", express.static(uploadDir));
+// Serve public folder
+app.use(express.static(path.join(__dirname, "public")));
 
-// Chat & Lobby
-app.use("/chat", express.static(path.join(__dirname, "public/chat")));
+// --------------------
+// Routes
+// --------------------
 
-// Games
-app.use("/games", express.static(path.join(__dirname, "public/games")));
-
-// Default route → Lobby
+// Lobby
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public/chat/index.html"));
 });
@@ -45,54 +36,107 @@ app.get("/chat", (req, res) => {
   res.sendFile(path.join(__dirname, "public/chat/chat.html"));
 });
 
-// Upload route
-app.post("/upload", upload.single("file"), (req, res) => {
-  if (!req.file) return res.status(400).send("No file uploaded");
-  const fileUrl = `/uploads/${req.file.filename}`;
-  res.json({ fileUrl, originalName: req.file.originalname });
+// Games main page
+app.get("/games", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/games/index.html"));
 });
 
-// -------- SOCKET.IO CHAT LOGIC -------- //
+// API endpoint → list all games
+app.get("/api/games", (req, res) => {
+  const gamesDir = path.join(__dirname, "public/games/game_uploads");
+  const imagesDir = path.join(gamesDir, "images");
+
+  const files = fs.readdirSync(gamesDir).filter(f => f.endsWith(".html"));
+
+  const games = files.map(file => {
+    const name = path.parse(file).name;
+
+    // Match any image type
+    let image = null;
+    const exts = [".jpg", ".jpeg", ".png"];
+    for (const ext of exts) {
+      if (fs.existsSync(path.join(imagesDir, name + ext))) {
+        image = `/games/game_uploads/images/${name + ext}`;
+        break;
+      }
+    }
+
+    return {
+      name,
+      file: `/games/game_uploads/${file}`,
+      image: image || null
+    };
+  });
+
+  res.json(games);
+});
+
+// Catch-all → 404
+app.use((req, res) => {
+  res.status(404).send("404 Not Found");
+});
+
+// --------------------
+// Socket.io Chat
+// --------------------
+
+// Keep track of users per room
+const rooms = {};
+
 io.on("connection", (socket) => {
-  console.log("User connected");
+  let currentRoom = null;
+  let username = null;
 
   // User joins a room
-  socket.on("joinRoom", ({ username, room }) => {
-    socket.join(room);
-    socket.username = username;
-    socket.room = room;
+  socket.on("joinRoom", ({ room, user }) => {
+    if (!room || !user) return;
+
+    currentRoom = room;
+    username = user;
+
+    // Join socket.io room
+    socket.join(currentRoom);
+
+    // Track user in room
+    if (!rooms[currentRoom]) rooms[currentRoom] = {};
+    rooms[currentRoom][socket.id] = username;
 
     // Notify others
-    socket.to(room).emit("user-joined", username);
+    socket.to(currentRoom).emit("receive-message", { sender: "System", message: `${username} joined the room.` });
   });
 
-  // Text messages
-  socket.on("send-message", ({ sender, message }) => {
-    if (socket.room) {
-      io.to(socket.room).emit("receive-message", { sender, message });
-    }
+  // Receive text messages
+  socket.on("send-message", ({ message }) => {
+    if (!currentRoom || !username) return;
+    io.to(currentRoom).emit("receive-message", { sender: username, message });
   });
 
-  // File messages
-  socket.on("send-file", ({ sender, fileUrl, originalName }) => {
-    if (socket.room) {
-      io.to(socket.room).emit("receive-file", {
-        sender,
-        fileUrl,
-        originalName,
-      });
-    }
+  // Receive file messages
+  socket.on("send-file", ({ fileName, fileData }) => {
+    if (!currentRoom || !username) return;
+    io.to(currentRoom).emit("receive-file", { sender: username, fileName, fileData });
   });
 
   // Disconnect
   socket.on("disconnect", () => {
-    if (socket.username && socket.room) {
-      socket.to(socket.room).emit("user-left", socket.username);
+    if (currentRoom && rooms[currentRoom] && rooms[currentRoom][socket.id]) {
+      const leavingUser = rooms[currentRoom][socket.id];
+      delete rooms[currentRoom][socket.id];
+
+      // Notify others
+      socket.to(currentRoom).emit("receive-message", { sender: "System", message: `${leavingUser} left the room.` });
+
+      // Cleanup room if empty
+      if (Object.keys(rooms[currentRoom]).length === 0) {
+        delete rooms[currentRoom];
+      }
     }
   });
 });
 
-// -------- START SERVER -------- //
+// --------------------
+// Start server
+// --------------------
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });

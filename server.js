@@ -1,67 +1,80 @@
+// server.js
 import express from "express";
-import path from "path";
-import { fileURLToPath } from "url";
+import { createServer } from "http";
+import { Server } from "socket.io";
 import fs from "fs";
+import path from "path";
 
 const app = express();
+const server = createServer(app);
+const io = new Server(server);
+
 const PORT = process.env.PORT || 3000;
 
-// Resolve paths
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ===== Middleware & Static Serving =====
+app.use(express.static("public"));
 
-// Static hosting for all of /public
-app.use(express.static(path.join(__dirname, "public")));
-
-// Chat pages
+// Chat root (default domain)
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/chat/index.html"));
+  res.sendFile(path.join(process.cwd(), "public/index.html"));
 });
 
-app.get("/chat", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/chat/chat.html"));
-});
-
-// Games main page
+// -------- Games Subdomain --------
+// Serve games hub page at games.anonychat.xyz
 app.get("/games", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/games/index.html"));
+  res.sendFile(path.join(process.cwd(), "public/games/index.html"));
 });
 
-// API endpoint → list all games
-app.get("/api/games", (req, res) => {
-  const gamesDir = path.join(__dirname, "public/games/game_uploads");
-  const imagesDir = path.join(gamesDir, "images");
+// Serve uploaded games as static files
+app.use("/game_uploads", express.static(path.join(process.cwd(), "public/games/game_uploads")));
 
-  const files = fs.readdirSync(gamesDir).filter(f => f.endsWith(".html"));
+// List of uploaded games
+app.get("/list", (req, res) => {
+  const gamesDir = path.join(process.cwd(), "public/games/game_uploads");
 
-  const games = files.map(file => {
-    const name = path.parse(file).name;
+  fs.readdir(gamesDir, (err, files) => {
+    if (err) {
+      console.error("Error reading games directory:", err);
+      return res.status(500).json({ error: "Unable to load games" });
+    }
+    const gameFiles = files.filter(f => f.endsWith(".html"));
+    res.json(gameFiles);
+  });
+});
 
-    // Match any image type
-    let image = null;
-    const exts = [".jpg", ".jpeg", ".png"];
-    for (const ext of exts) {
-      if (fs.existsSync(path.join(imagesDir, name + ext))) {
-        image = `/games/game_uploads/images/${name + ext}`;
-        break;
-      }
+// ====== Chat (Socket.io) ======
+let rooms = {};
+
+io.on("connection", (socket) => {
+  console.log("A user connected");
+
+  socket.on("joinRoom", ({ room, username, color }) => {
+    socket.join(room);
+
+    if (!rooms[room]) {
+      rooms[room] = [];
     }
 
-    return {
-      name,
-      file: `/games/game_uploads/${file}`,
-      image: image || null
-    };
+    rooms[room].push({ id: socket.id, username, color });
+
+    io.to(room).emit("userList", rooms[room]);
+    console.log(`${username} joined room: ${room}`);
   });
 
-  res.json(games);
+  socket.on("chatMessage", ({ room, username, message, color }) => {
+    io.to(room).emit("chatMessage", { username, message, color });
+  });
+
+  socket.on("disconnect", () => {
+    for (let room in rooms) {
+      rooms[room] = rooms[room].filter(u => u.id !== socket.id);
+      io.to(room).emit("userList", rooms[room]);
+    }
+    console.log("A user disconnected");
+  });
 });
 
-// Catch-all → 404
-app.use((req, res) => {
-  res.status(404).send("404 Not Found");
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+// ===== Start Server =====
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });

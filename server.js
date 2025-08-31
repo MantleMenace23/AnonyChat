@@ -1,84 +1,123 @@
 const express = require("express");
 const http = require("http");
 const path = require("path");
+const multer = require("multer");
 const fs = require("fs");
 const { Server } = require("socket.io");
-const vhost = require("vhost");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const PORT = process.env.PORT || 10000;
-const CHAT_DOMAIN = "anonychat.xyz";
-const GAMES_DOMAIN = "games.anonychat.xyz";
+const PORT = process.env.PORT || 3000;
 
-// --- Chat App ---
-const chatApp = express();
-chatApp.use(express.static(path.join(__dirname, "public/chat")));
+// ---------- FILE UPLOADS (for games) ----------
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, "public/games/game_uploads"));
+  },
+  filename: (req, file, cb) => {
+    cb(null, file.originalname);
+  },
+});
+const upload = multer({ storage });
 
-// Serve lobby join
-chatApp.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/chat/index.html"));
+app.post("/upload", upload.single("gameFile"), (req, res) => {
+  res.send("File uploaded successfully");
 });
 
-// Serve /chat route
-chatApp.get("/chat", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/chat/chat.html"));
+// ---------- HOSTNAME-BASED ROUTING ----------
+app.use((req, res, next) => {
+  const host = req.hostname;
+
+  if (host === "anonychat.xyz" || host === "www.anonychat.xyz") {
+    // ----- CHAT SITE -----
+    if (req.path === "/" || req.path === "/index.html") {
+      return res.sendFile(path.join(__dirname, "public/chat/index.html"));
+    }
+    if (req.path === "/chat") {
+      return res.sendFile(path.join(__dirname, "public/chat/chat.html"));
+    }
+    return express.static(path.join(__dirname, "public/chat"))(req, res, next);
+  }
+
+  if (host === "games.anonychat.xyz") {
+    // ----- GAMES SITE -----
+    if (req.path === "/" || req.path === "/index.html") {
+      return res.sendFile(path.join(__dirname, "public/games/index.html"));
+    }
+    return express.static(path.join(__dirname, "public/games"))(req, res, next);
+  }
+
+  return next();
 });
 
-// Serve any /chat/... route to chat.html
-chatApp.get("/chat/*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/chat/chat.html"));
-});
+// ---------- SOCKET.IO (chat functionality) ----------
+io.on("connection", (socket) => {
+  console.log("A user connected");
 
-// --- Games App ---
-const gamesApp = express();
-const gamesPath = path.join(__dirname, "public/games");
-const uploadsPath = path.join(gamesPath, "game_uploads");
-const imagesPath = path.join(uploadsPath, "images");
-
-// Serve static games files
-gamesApp.use(express.static(gamesPath));
-gamesApp.use("/game_uploads", express.static(uploadsPath));
-gamesApp.use("/game_uploads/images", express.static(imagesPath));
-
-// API to list all games (pulled from GitHub files)
-gamesApp.get("/game_list", (req, res) => {
-  if (!fs.existsSync(uploadsPath)) return res.json([]);
-
-  const games = fs.readdirSync(uploadsPath)
-    .filter(f => f.endsWith(".html"))
-    .map(file => {
-      const name = path.parse(file).name;
-      const possibleExt = [".png", ".jpg", ".jpeg"];
-      let image = null;
-      for (let ext of possibleExt) {
-        const imgPath = path.join(imagesPath, name + ext);
-        if (fs.existsSync(imgPath)) {
-          image = "/game_uploads/images/" + name + ext;
-          break;
-        }
-      }
-      return { name, file: "/game_uploads/" + file, image };
-    });
-
-  res.json(games);
-});
-
-// --- Mount vhosts ---
-app.use(vhost(CHAT_DOMAIN, chatApp));
-app.use(vhost(GAMES_DOMAIN, gamesApp));
-
-// --- Socket.IO for chat ---
-io.on("connection", socket => {
-  socket.on("joinRoom", room => {
+  socket.on("joinRoom", (room, username) => {
     socket.join(room);
+    console.log(`${username} joined room: ${room}`);
+    io.to(room).emit("message", {
+      user: "System",
+      text: `${username} has joined the room.`,
+    });
   });
-  socket.on("message", ({ room, user, msg }) => {
-    io.to(room).emit("message", { user, msg });
+
+  socket.on("chatMessage", ({ room, user, text, color }) => {
+    io.to(room).emit("message", { user, text, color });
+  });
+
+  socket.on("disconnect", () => {
+    console.log("A user disconnected");
   });
 });
 
-// --- Start server ---
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// ---------- GAME LIST API (for games page) ----------
+app.get("/api/games", (req, res) => {
+  if (req.hostname !== "games.anonychat.xyz") {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  const gamesDir = path.join(__dirname, "public/games/game_uploads");
+  const imagesDir = path.join(gamesDir, "images");
+
+  fs.readdir(gamesDir, (err, files) => {
+    if (err) {
+      return res.status(500).json({ error: "Failed to read games directory" });
+    }
+
+    const games = files
+      .filter((file) => file.endsWith(".html"))
+      .map((file) => {
+        const name = path.parse(file).name;
+        const possibleImages = [
+          `${name}.jpg`,
+          `${name}.jpeg`,
+          `${name}.png`,
+        ];
+
+        let image = null;
+        for (const img of possibleImages) {
+          if (fs.existsSync(path.join(imagesDir, img))) {
+            image = `/games/game_uploads/images/${img}`;
+            break;
+          }
+        }
+
+        return {
+          name,
+          file: `/games/game_uploads/${file}`,
+          image,
+        };
+      });
+
+    res.json(games);
+  });
+});
+
+// ---------- START SERVER ----------
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});

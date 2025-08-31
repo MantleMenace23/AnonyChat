@@ -47,9 +47,6 @@ app.use((req, res, next) => {
       return res.sendFile(path.join(__dirname, "public/games/index.html"));
     }
 
-    // serve images + uploads
-    app.use("/games/game_uploads", express.static(path.join(__dirname, "public/games/game_uploads")));
-
     return express.static(path.join(__dirname, "public/games"))(req, res, next);
   }
 
@@ -96,11 +93,7 @@ app.get("/api/games", (req, res) => {
       .filter((file) => file.endsWith(".html"))
       .map((file) => {
         const name = path.parse(file).name;
-        const possibleImages = [
-          `${name}.jpg`,
-          `${name}.jpeg`,
-          `${name}.png`,
-        ];
+        const possibleImages = [`${name}.jpg`, `${name}.jpeg`, `${name}.png`];
 
         let image = null;
         for (const img of possibleImages) {
@@ -112,43 +105,13 @@ app.get("/api/games", (req, res) => {
 
         return {
           name,
-          url: `/game/${name}`, // load via /game/:name instead of raw file
+          url: `/games/game_uploads/${file}`, // raw path for iframe
           image,
         };
       });
 
     res.json(games);
   });
-});
-
-// ---------- FULLSCREEN GAME PLAYER ----------
-app.get("/game/:name", (req, res) => {
-  const gameName = req.params.name;
-  const gameFile = path.join(__dirname, `public/games/game_uploads/${gameName}.html`);
-
-  if (!fs.existsSync(gameFile)) {
-    return res.status(404).send("Game not found");
-  }
-
-  const html = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${gameName}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-  <body class="bg-gray-900 flex flex-col items-center justify-center h-screen">
-    <a href="/" class="absolute top-4 left-4 px-4 py-2 bg-gray-800 text-white rounded-lg shadow hover:bg-gray-700 transition">
-      ← Back
-    </a>
-    <iframe src="/games/game_uploads/${gameName}.html" class="w-full h-full border-none"></iframe>
-  </body>
-  </html>
-  `;
-
-  res.send(html);
 });
 
 // ---------- START SERVER ----------

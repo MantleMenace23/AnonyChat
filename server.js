@@ -1,69 +1,68 @@
-// server.js
 const express = require("express");
-const path = require("path");
 const http = require("http");
+const path = require("path");
 const { Server } = require("socket.io");
+const multer = require("multer");
+const fs = require("fs");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Serve static files
-app.use(express.static(path.join(__dirname, "public")));
+// --- Config ---
+const PORT = process.env.PORT || 10000;
+const CHAT_DOMAIN = "anonychat.xyz";
+const GAMES_DOMAIN = "games.anonychat.xyz";
 
-// ===== ROUTES =====
+// --- Storage for game uploads ---
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, "public/games/game_uploads"));
+  },
+  filename: function (req, file, cb) {
+    cb(null, file.originalname);
+  },
+});
+const upload = multer({ storage });
 
-// Home page
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+// --- Virtual hosts ---
+const vhost = require("vhost");
+
+// --- Chat app ---
+const chatApp = express();
+chatApp.use(express.static(path.join(__dirname, "public/chat")));
+chatApp.get("/chat", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/chat/chat.html"));
 });
 
-// Chat always at /chat
-app.get("/chat", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "chat.html"));
+// --- Game app ---
+const gamesApp = express();
+gamesApp.use(express.static(path.join(__dirname, "public/games")));
+gamesApp.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/games/index.html"));
 });
 
-// ===== SOCKET.IO =====
+// Upload game files
+gamesApp.post("/upload", upload.single("gameFile"), (req, res) => {
+  res.json({ success: true, file: req.file.filename });
+});
+
+// --- Use vhost ---
+app.use(vhost(CHAT_DOMAIN, chatApp));
+app.use(vhost(GAMES_DOMAIN, gamesApp));
+
+// --- Socket.io for chat ---
 io.on("connection", (socket) => {
-  console.log("New client connected:", socket.id);
-
-  // Join a room by join code
-  socket.on("joinRoom", (joinCode, username) => {
-    socket.join(joinCode);
-    socket.joinCode = joinCode;
-    socket.username = username;
-
-    console.log(`${username} joined room ${joinCode}`);
-    io.to(joinCode).emit("message", {
-      user: "system",
-      text: `${username} has joined the room.`,
-    });
+  socket.on("joinRoom", (room) => {
+    socket.join(room);
   });
 
-  // Handle chat messages
-  socket.on("chatMessage", (msg) => {
-    if (socket.joinCode) {
-      io.to(socket.joinCode).emit("message", {
-        user: socket.username,
-        text: msg,
-      });
-    }
-  });
-
-  // Disconnect
-  socket.on("disconnect", () => {
-    if (socket.joinCode) {
-      io.to(socket.joinCode).emit("message", {
-        user: "system",
-        text: `${socket.username || "Someone"} has left the room.`,
-      });
-    }
-    console.log("Client disconnected:", socket.id);
+  socket.on("message", ({ room, user, msg }) => {
+    io.to(room).emit("message", { user, msg });
   });
 });
 
-// ===== START SERVER =====
-const PORT = process.env.PORT || 3000;
+// --- Start server ---
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

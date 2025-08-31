@@ -20,6 +20,7 @@ const __dirname = path.dirname(__filename);
 // --------------------
 
 // Serve public folder
+// Games are on a subdomain, so we mount them under /games for internal paths
 app.use(express.static(path.join(__dirname, "public")));
 
 // --------------------
@@ -36,13 +37,13 @@ app.get("/chat", (req, res) => {
   res.sendFile(path.join(__dirname, "public/chat/chat.html"));
 });
 
-// Games main page
+// Games main page (games.anonychat.xyz should point here via DNS or reverse proxy)
 app.get("/games", (req, res) => {
   res.sendFile(path.join(__dirname, "public/games/index.html"));
 });
 
 // API endpoint → list all games
-app.get("/api/games", (req, res) => {
+app.get("/games/api/games", (req, res) => {
   const gamesDir = path.join(__dirname, "public/games/game_uploads");
   const imagesDir = path.join(gamesDir, "images");
 
@@ -80,53 +81,42 @@ app.use((req, res) => {
 // Socket.io Chat
 // --------------------
 
-// Keep track of users per room
 const rooms = {};
 
 io.on("connection", (socket) => {
   let currentRoom = null;
   let username = null;
 
-  // User joins a room
   socket.on("joinRoom", ({ room, user }) => {
     if (!room || !user) return;
 
     currentRoom = room;
     username = user;
 
-    // Join socket.io room
     socket.join(currentRoom);
 
-    // Track user in room
     if (!rooms[currentRoom]) rooms[currentRoom] = {};
     rooms[currentRoom][socket.id] = username;
 
-    // Notify others
     socket.to(currentRoom).emit("receive-message", { sender: "System", message: `${username} joined the room.` });
   });
 
-  // Receive text messages
   socket.on("send-message", ({ message }) => {
     if (!currentRoom || !username) return;
     io.to(currentRoom).emit("receive-message", { sender: username, message });
   });
 
-  // Receive file messages
   socket.on("send-file", ({ fileName, fileData }) => {
     if (!currentRoom || !username) return;
     io.to(currentRoom).emit("receive-file", { sender: username, fileName, fileData });
   });
 
-  // Disconnect
   socket.on("disconnect", () => {
     if (currentRoom && rooms[currentRoom] && rooms[currentRoom][socket.id]) {
       const leavingUser = rooms[currentRoom][socket.id];
       delete rooms[currentRoom][socket.id];
-
-      // Notify others
       socket.to(currentRoom).emit("receive-message", { sender: "System", message: `${leavingUser} left the room.` });
 
-      // Cleanup room if empty
       if (Object.keys(rooms[currentRoom]).length === 0) {
         delete rooms[currentRoom];
       }

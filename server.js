@@ -1,80 +1,59 @@
-// server.js
 import express from "express";
-import { createServer } from "http";
+import http from "http";
 import { Server } from "socket.io";
-import fs from "fs";
-import path from "path";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
-const server = createServer(app);
+const server = http.createServer(app);
 const io = new Server(server);
 
-const PORT = process.env.PORT || 3000;
+// ---------- STATIC FILES ----------
+// Chat site (anonychat.xyz)
+app.use("/", express.static(join(__dirname, "public/chat")));
 
-// ===== Middleware & Static Serving =====
-app.use(express.static("public"));
+// Games site (games.anonychat.xyz)
+app.use("/games", express.static(join(__dirname, "public/games")));
 
-// Chat root (default domain)
+// Root index for chat (anonychat.xyz)
 app.get("/", (req, res) => {
-  res.sendFile(path.join(process.cwd(), "public/index.html"));
+  res.sendFile(join(__dirname, "public/chat/index.html"));
 });
 
-// -------- Games Subdomain --------
-// Serve games hub page at games.anonychat.xyz
+// Chat rooms (anonychat.xyz/chat)
+app.get("/chat", (req, res) => {
+  res.sendFile(join(__dirname, "public/chat/chat.html"));
+});
+
+// Games index (games.anonychat.xyz)
 app.get("/games", (req, res) => {
-  res.sendFile(path.join(process.cwd(), "public/games/index.html"));
+  res.sendFile(join(__dirname, "public/games/index.html"));
 });
 
-// Serve uploaded games as static files
-app.use("/game_uploads", express.static(path.join(process.cwd(), "public/games/game_uploads")));
-
-// List of uploaded games
-app.get("/list", (req, res) => {
-  const gamesDir = path.join(process.cwd(), "public/games/game_uploads");
-
-  fs.readdir(gamesDir, (err, files) => {
-    if (err) {
-      console.error("Error reading games directory:", err);
-      return res.status(500).json({ error: "Unable to load games" });
-    }
-    const gameFiles = files.filter(f => f.endsWith(".html"));
-    res.json(gameFiles);
-  });
-});
-
-// ====== Chat (Socket.io) ======
-let rooms = {};
-
+// ---------- SOCKET.IO ----------
 io.on("connection", (socket) => {
-  console.log("A user connected");
+  console.log("User connected");
 
-  socket.on("joinRoom", ({ room, username, color }) => {
+  socket.on("joinRoom", (room, username) => {
     socket.join(room);
-
-    if (!rooms[room]) {
-      rooms[room] = [];
-    }
-
-    rooms[room].push({ id: socket.id, username, color });
-
-    io.to(room).emit("userList", rooms[room]);
-    console.log(`${username} joined room: ${room}`);
+    console.log(`${username} joined room ${room}`);
+    io.to(room).emit("message", { user: "System", text: `${username} joined!` });
   });
 
-  socket.on("chatMessage", ({ room, username, message, color }) => {
-    io.to(room).emit("chatMessage", { username, message, color });
+  socket.on("chatMessage", ({ room, user, text, color }) => {
+    io.to(room).emit("message", { user, text, color });
   });
 
   socket.on("disconnect", () => {
-    for (let room in rooms) {
-      rooms[room] = rooms[room].filter(u => u.id !== socket.id);
-      io.to(room).emit("userList", rooms[room]);
-    }
-    console.log("A user disconnected");
+    console.log("User disconnected");
   });
 });
 
-// ===== Start Server =====
+// ---------- START ----------
+const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

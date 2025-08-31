@@ -1,109 +1,90 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>AnonyChat Games</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/games.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #121212;
+      color: white;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #1e1e1e;
+      padding: 1rem;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+      padding: 1rem;
+    }
+    .tile {
+      background: #1e1e1e;
+      border-radius: 12px;
+      text-align: center;
+      padding: 1rem;
+      transition: 0.3s;
+      cursor: pointer;
+    }
+    .tile:hover {
+      background: #333;
+      transform: scale(1.05);
+    }
+    .tile h3 {
+      margin: 0.5rem 0;
+    }
+    iframe {
+      width: 100%;
+      height: 400px;
+      border: none;
+      border-radius: 12px;
+      margin-top: 1rem;
+      display: none;
+    }
+  </style>
 </head>
-<body class="bg-gradient-to-b from-slate-900 to-slate-800 text-slate-100 font-sans">
-
-  <header class="max-w-6xl mx-auto p-4 flex items-center justify-between gap-4">
-    <h1 class="text-2xl font-bold">AnonyChat Games</h1>
-    <a href="https://anonychat.xyz" 
-       class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-semibold shadow-lg transition">💬 Chat</a>
-  </header>
-
-  <main class="max-w-6xl mx-auto p-4">
-    <!-- Search bar -->
-    <div class="mb-4">
-      <input id="search" type="text" placeholder="Search games..." 
-             class="w-full px-4 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400">
-    </div>
-
-    <div id="grid" class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"></div>
-    <div id="empty" class="text-center text-slate-400 mt-12 hidden">No games uploaded yet.</div>
+<body>
+  <header>🎮 AnonyChat Games</header>
+  <main>
+    <div class="grid" id="gameGrid"></div>
+    <iframe id="gameFrame"></iframe>
   </main>
 
-  <!-- Fullscreen iframe overlay -->
-  <div id="playOverlay" class="fixed inset-0 hidden z-50 bg-black/95 flex flex-col">
-    <div class="p-3 flex items-center justify-between gap-3">
-      <button id="backBtn" class="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700">⬅ Back</button>
-      <h2 id="playTitle" class="text-xl font-semibold"></h2>
-      <button id="openNewTab" class="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700">Open in new tab</button>
-    </div>
-    <iframe id="playFrame" class="flex-1 w-full h-full bg-white" frameborder="0" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
-  </div>
-
-  <script type="module">
-    const grid = document.getElementById('grid');
-    const empty = document.getElementById('empty');
-    const searchInput = document.getElementById('search');
-    const playOverlay = document.getElementById('playOverlay');
-    const playFrame = document.getElementById('playFrame');
-    const playTitle = document.getElementById('playTitle');
-    const backBtn = document.getElementById('backBtn');
-    const openNewTab = document.getElementById('openNewTab');
-
-    let games = [];
-
+  <script>
     async function loadGames() {
       try {
-        const res = await fetch('/games/list-uploads');
-        games = await res.json();
+        const res = await fetch("/list");
+        const games = await res.json();
 
-        if (!games.length) {
-          empty.classList.remove('hidden');
-          return;
-        }
-        empty.classList.add('hidden');
-        renderTiles(games);
+        const grid = document.getElementById("gameGrid");
+        const frame = document.getElementById("gameFrame");
+        grid.innerHTML = "";
+
+        games.forEach(file => {
+          const tile = document.createElement("div");
+          tile.className = "tile";
+          const name = file.replace(".html", "");
+
+          tile.innerHTML = `<h3>${name}</h3><p>Play Now</p>`;
+          tile.onclick = () => {
+            frame.src = `/game_uploads/${file}`;
+            frame.style.display = "block";
+            frame.scrollIntoView({ behavior: "smooth" });
+          };
+
+          grid.appendChild(tile);
+        });
       } catch (err) {
-        console.error('Failed to load games:', err);
+        console.error("Error loading games:", err);
       }
     }
-
-    function renderTiles(list) {
-      grid.innerHTML = '';
-      list.forEach(async file => {
-        const htmlRes = await fetch(`/games/game_uploads/${file}`);
-        const htmlText = await htmlRes.text();
-
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlText, 'text/html');
-        const title = doc.querySelector('title')?.textContent || 'Untitled';
-        const imgSrc = doc.querySelector('img')?.getAttribute('src') || '';
-
-        const tile = document.createElement('div');
-        tile.className = 'bg-slate-800 rounded-lg overflow-hidden cursor-pointer hover:scale-105 transition-transform';
-        tile.innerHTML = `
-          <img src="${imgSrc}" alt="${title}" class="w-full h-40 object-cover">
-          <div class="p-2 text-center font-semibold">${title}</div>
-        `;
-        tile.onclick = () => {
-          playFrame.src = `/games/game_uploads/${file}`;
-          playTitle.textContent = title;
-          playOverlay.classList.remove('hidden');
-        };
-        grid.appendChild(tile);
-      });
-    }
-
-    searchInput.addEventListener('input', () => {
-      const query = searchInput.value.toLowerCase();
-      renderTiles(games.filter(f => f.toLowerCase().includes(query)));
-    });
-
-    backBtn.addEventListener('click', () => {
-      playOverlay.classList.add('hidden');
-      playFrame.src = '';
-    });
-
-    openNewTab.addEventListener('click', () => {
-      window.open(playFrame.src, '_blank');
-    });
 
     loadGames();
   </script>

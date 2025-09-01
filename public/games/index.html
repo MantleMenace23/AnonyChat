@@ -77,10 +77,11 @@
       const grid = document.getElementById("gamesGrid");
       const noResults = document.getElementById("noResults");
 
+      // Use flex layout for full-screen iframe
       grid.innerHTML = `
-        <div class="relative w-full h-screen">
-          <button onclick="loadGames()" class="absolute top-4 left-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded z-10">← Back</button>
-          <iframe src="/game_uploads/${file}" class="w-full h-full border-0"></iframe>
+        <div class="relative w-full h-[calc(100vh-64px)] flex flex-col">
+          <button onclick="loadGames()" class="absolute top-4 left-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded z-20">← Back</button>
+          <iframe src="/game_uploads/${file}" class="flex-1 w-full border-0"></iframe>
         </div>
       `;
       noResults.classList.add("hidden");

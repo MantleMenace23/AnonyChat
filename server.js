@@ -6,36 +6,33 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 
 // --------------------
-// Chat Server Setup
+// Setup paths
+// --------------------
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// --------------------
+// Chat server
 // --------------------
 const chatApp = express();
 const chatServer = http.createServer(chatApp);
 const io = new SocketIOServer(chatServer);
-const CHAT_PORT = process.env.PORT || 3000;
+const CHAT_PORT = process.env.CHAT_PORT || 3000;
 
-// Resolve paths
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Serve chat static files
+chatApp.use(express.static(path.join(__dirname, "public/chat")));
 
-// Serve public folder for chat
-chatApp.use(express.static(path.join(__dirname, "public")));
-
-// Lobby
+// Lobby route
 chatApp.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public/chat/index.html"));
 });
 
-// Chat rooms
+// Chat room route
 chatApp.get("/chat", (req, res) => {
   res.sendFile(path.join(__dirname, "public/chat/chat.html"));
 });
 
-// Catch-all for chat
-chatApp.use((req, res) => {
-  res.status(404).send("404 Not Found - Chat");
-});
-
-// Socket.io Chat
+// Socket.io chat logic
 const rooms = {};
 
 io.on("connection", (socket) => {
@@ -55,7 +52,7 @@ io.on("connection", (socket) => {
 
     socket.to(currentRoom).emit("receive-message", {
       sender: "System",
-      message: `${username} joined the room.`
+      message: `${username} joined the room.`,
     });
   });
 
@@ -75,7 +72,7 @@ io.on("connection", (socket) => {
       delete rooms[currentRoom][socket.id];
       socket.to(currentRoom).emit("receive-message", {
         sender: "System",
-        message: `${leavingUser} left the room.`
+        message: `${leavingUser} left the room.`,
       });
 
       if (Object.keys(rooms[currentRoom]).length === 0) {
@@ -85,19 +82,44 @@ io.on("connection", (socket) => {
   });
 });
 
+// Catch-all for chat
+chatApp.use((req, res) => {
+  res.status(404).send("404 Not Found - Chat");
+});
+
 // Start chat server
 chatServer.listen(CHAT_PORT, () => {
   console.log(`Chat server running on http://localhost:${CHAT_PORT}`);
 });
 
 // --------------------
-// Games Server Setup
+// Games server
 // --------------------
 const gamesApp = express();
-const GAMES_PORT = process.env.GAMES_PORT || 4000; // different port for games
+const GAMES_PORT = process.env.GAMES_PORT || 4000;
 
-// Serve public/games folder as root
+// Serve everything in public/games at root
 gamesApp.use(express.static(path.join(__dirname, "public/games")));
+
+// API to list all games (matches your original working file-pulling logic)
+gamesApp.get("/game_uploads", (req, res) => {
+  const gamesDir = path.join(__dirname, "public/games/game_uploads");
+  const imagesDir = path.join(gamesDir, "images");
+
+  try {
+    const files = fs.readdirSync(gamesDir).filter(f => f.endsWith(".html"));
+
+    let html = "<!DOCTYPE html><html><body><ul>";
+    files.forEach(file => {
+      html += `<li><a href="${file}">${file}</a></li>`;
+    });
+    html += "</ul></body></html>";
+
+    res.send(html);
+  } catch (err) {
+    res.status(500).send("Error reading games directory");
+  }
+});
 
 // Catch-all for games
 gamesApp.use((req, res) => {

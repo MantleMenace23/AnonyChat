@@ -54,8 +54,8 @@ app.get("/", (req, res) => {
   }
 });
 
-// Serve chat room at /chat only (no /room)
-app.get("/chat", (req, res) => {
+// Serve chat page at /chat and /chat/room (no redirect)
+app.get(["/chat", "/chat/room"], (req, res) => {
   if (!req.isChat) return res.status(404).send("404 Not Found");
   res.sendFile(path.join(__dirname, "public/chat/chat.html"));
 });
@@ -141,6 +141,6 @@ io.on("connection", (socket) => {
 // --------------------
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Chat subdomain: anonychat.xyz -> / and /chat`);
+  console.log(`Chat subdomain: anonychat.xyz -> / and /chat (also /chat/room for form submission)`);
   console.log(`Games subdomain: games.anonychat.xyz -> / only`);
 });

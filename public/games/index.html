@@ -1,123 +1,118 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Games | Anonychat</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Games</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex flex-col">
 
-    <!-- Header -->
-    <header class="p-4 bg-gray-800 text-center text-2xl font-bold">
+  <!-- Header -->
+  <header class="p-4 bg-gray-800 shadow-md">
+    <h1 class="text-2xl font-bold text-center">Games</h1>
+  </header>
 
-        <a href="anonychat.xyz"
-           class="inline-block w-[200px] h-[50px] bg-gradient-to-r from-blue-400 to-blue-600 text-white rounded-lg hover:opacity-90 transition flex items-center justify-center">
-            AnonyChat
-        </a>
+  <!-- Search Bar -->
+  <div id="searchWrapper" class="p-4">
+    <input id="searchInput" type="text" placeholder="Search games..."
+      class="w-full p-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:border-blue-500">
+  </div>
 
-        Games
-    </header>
+  <!-- Main content -->
+  <main id="gamesGrid" class="grid grid-cols-2 md:grid-cols-4 gap-6 p-4"></main>
 
-    <!-- Search -->
-    <div class="p-4" id="searchWrapper">
-        <input id="searchBar"
-               type="text"
-               placeholder="Search games..."
-               class="w-full p-2 rounded text-black" />
-    </div>
+  <!-- No Results -->
+  <p id="noResults" class="hidden text-center text-gray-400 mt-4">No games found.</p>
 
-    <!-- Game Grid -->
-    <main class="grid grid-cols-2 md:grid-cols-4 gap-6 p-4" id="gamesGrid">
-        <!-- JS inserts game tiles -->
-    </main>
+  <script>
+    const games = [
+      { name: "Game One", file: "game1.html" },
+      { name: "Game Two", file: "game2.html" },
+      { name: "Game Three", file: "game3.html" },
+      { name: "Game Four", file: "game4.html" }
+    ];
 
-    <p id="noResults" class="text-center text-gray-400 hidden">No games found.</p>
+    function loadGames() {
+      const grid = document.getElementById("gamesGrid");
+      const searchWrapper = document.getElementById("searchWrapper");
+      const noResults = document.getElementById("noResults");
 
-    <script>
-        async function loadGames() {
-            try {
-                const res = await fetch("/game_uploads");
-                const html = await res.text();
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, "text/html");
+      grid.className = "grid grid-cols-2 md:grid-cols-4 gap-6 p-4";
+      grid.innerHTML = "";
 
-                const files = Array.from(doc.querySelectorAll("a"))
-                    .map(a => a.getAttribute("href"))
-                    .filter(f => f.endsWith(".html"));
+      games.forEach(game => {
+        const card = document.createElement("div");
+        card.className = "bg-gray-800 rounded-lg shadow-lg p-4 flex flex-col items-center";
 
-                const grid = document.getElementById("gamesGrid");
-                grid.innerHTML = "";
+        card.innerHTML = `
+          <h2 class="text-lg font-semibold mb-2">${game.name}</h2>
+          <button onclick="playGame('${game.file}')"
+            class="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg shadow-md hover:from-blue-600 hover:to-indigo-700 transition w-full">
+            Play
+          </button>
+        `;
 
-                files.forEach(file => {
-                    const name = file.replace(".html", "");
-                    const tile = document.createElement("div");
-                    tile.className = "bg-gray-800 rounded-xl shadow-lg overflow-hidden gameTile";
-                    tile.setAttribute("data-name", name.toLowerCase());
+        grid.appendChild(card);
+      });
 
-                    tile.innerHTML = `
-                <img src="/game_uploads/images/${name}.jpg"
-                     onerror="this.src='/game_uploads/images/${name}.jpeg'; this.onerror=null;"
-                     alt="${name}"
-                     class="w-full h-32 object-cover">
-                <div class="p-3 flex justify-between items-center">
-                  <span class="font-semibold">${name}</span>
-                  <button onclick="playGame('${file}')"
-                          class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
-                    Play
-                  </button>
-                </div>
-              `;
-                    grid.appendChild(tile);
-                });
+      searchWrapper.classList.remove("hidden");
+      noResults.classList.add("hidden");
+    }
 
-                // Show search bar again
-                document.getElementById("searchWrapper").classList.remove("hidden");
-                document.getElementById("noResults").classList.add("hidden");
-            } catch (err) {
-                console.error("Error loading games", err);
-            }
-        }
+    function playGame(file) {
+      const grid = document.getElementById("gamesGrid");
+      const searchWrapper = document.getElementById("searchWrapper");
+      const noResults = document.getElementById("noResults");
 
-        function playGame(file) {
-            const grid = document.getElementById("gamesGrid");
-            const searchWrapper = document.getElementById("searchWrapper");
-            const noResults = document.getElementById("noResults");
+      searchWrapper.classList.add("hidden");
+      grid.className = ""; // remove grid to allow fullscreen
 
-            // Hide search bar while game is open
-            searchWrapper.classList.add("hidden");
+      grid.innerHTML = `
+        <div class="relative w-full h-screen">
+          <button onclick="loadGames()" 
+            class="absolute top-4 left-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded z-20">
+            ← Back
+          </button>
+          <iframe src="/game_uploads/${file}" 
+                  class="absolute top-0 left-0 w-full h-full border-0"></iframe>
+        </div>
+      `;
 
-            grid.innerHTML = `
-            <div class="relative w-full h-screen">
-              <button onclick="loadGames()"
-                class="absolute top-4 left-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded z-20">
-                ← Back
-              </button>
-              <iframe src="/game_uploads/${file}"
-                      class="absolute top-0 left-0 w-full h-full border-0"></iframe>
-            </div>
+      noResults.classList.add("hidden");
+    }
+
+    // Search functionality
+    document.getElementById("searchInput").addEventListener("input", (e) => {
+      const query = e.target.value.toLowerCase();
+      const filteredGames = games.filter(game => game.name.toLowerCase().includes(query));
+
+      const grid = document.getElementById("gamesGrid");
+      grid.innerHTML = "";
+
+      if (filteredGames.length === 0) {
+        document.getElementById("noResults").classList.remove("hidden");
+      } else {
+        document.getElementById("noResults").classList.add("hidden");
+        filteredGames.forEach(game => {
+          const card = document.createElement("div");
+          card.className = "bg-gray-800 rounded-lg shadow-lg p-4 flex flex-col items-center";
+
+          card.innerHTML = `
+            <h2 class="text-lg font-semibold mb-2">${game.name}</h2>
+            <button onclick="playGame('${game.file}')"
+              class="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg shadow-md hover:from-blue-600 hover:to-indigo-700 transition w-full">
+              Play
+            </button>
           `;
-            noResults.classList.add("hidden");
-        }
 
-        document.getElementById("searchBar").addEventListener("input", function () {
-            const query = this.value.toLowerCase();
-            const tiles = document.querySelectorAll(".gameTile");
-            let visibleCount = 0;
-
-            tiles.forEach(tile => {
-                const name = tile.getAttribute("data-name");
-                if (name.includes(query)) {
-                    tile.style.display = "block";
-                    visibleCount++;
-                } else {
-                    tile.style.display = "none";
-                }
-            });
-
-            document.getElementById("noResults").classList.toggle("hidden", visibleCount > 0);
+          grid.appendChild(card);
         });
+      }
+    });
 
-        loadGames();
-    </script>
+    // Load games on page start
+    loadGames();
+  </script>
 </body>
 </html>

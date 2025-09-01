@@ -7,105 +7,112 @@
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex flex-col">
 
-  <!-- Header -->
-  <header class="p-4 bg-gray-800 text-center text-2xl font-bold">
-    Games
-  </header>
+    <!-- Header -->
+    <header class="p-4 bg-gray-800 text-center text-2xl font-bold">
 
-  <!-- Search -->
-  <div class="p-4">
-    <input 
-      id="searchBar" 
-      type="text" 
-      placeholder="Search games..." 
-      class="w-full p-2 rounded text-black"
-    />
-  </div>
+        <a href="anonychat.xyz"
+           class="inline-block w-[200px] h-[50px] bg-gradient-to-r from-blue-400 to-blue-600 text-white rounded-lg hover:opacity-90 transition flex items-center justify-center">
+            AnonyChat
+        </a>
 
-  <!-- Game Grid -->
-  <main class="grid grid-cols-2 md:grid-cols-4 gap-6 p-4" id="gamesGrid">
-    <!-- JS inserts game tiles -->
-  </main>
+        Games
+    </header>
 
-  <p id="noResults" class="text-center text-gray-400 hidden">No games found.</p>
 
-  <script>
-    async function loadGames() {
-      try {
-        const res = await fetch("/game_uploads");
-        const html = await res.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
 
-        const files = Array.from(doc.querySelectorAll("a"))
-          .map(a => a.getAttribute("href"))
-          .filter(f => f.endsWith(".html"));
 
-        const grid = document.getElementById("gamesGrid");
-        grid.innerHTML = "";
+    <!-- Search -->
+    <div class="p-4">
+        <input id="searchBar"
+               type="text"
+               placeholder="Search games..."
+               class="w-full p-2 rounded text-black" />
+    </div>
 
-        files.forEach(file => {
-          const name = file.replace(".html", "");
-          const imgFormats = ["jpg", "jpeg", "png"];
-          let imgSrc = "";
+    <!-- Game Grid -->
+    <main class="grid grid-cols-2 md:grid-cols-4 gap-6 p-4" id="gamesGrid">
+        <!-- JS inserts game tiles -->
+    </main>
 
-          for (let ext of imgFormats) {
-            const possible = `/game_uploads/images/${name}.${ext}`;
-            imgSrc = possible;
-          }
+    <p id="noResults" class="text-center text-gray-400 hidden">No games found.</p>
 
-          const tile = document.createElement("div");
-          tile.className = "bg-gray-800 rounded-xl shadow-lg overflow-hidden gameTile";
-          tile.setAttribute("data-name", name.toLowerCase());
+    <script>
+        async function loadGames() {
+            try {
+                const res = await fetch("/game_uploads");
+                const html = await res.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, "text/html");
 
-          tile.innerHTML = `
-            <img src="/game_uploads/images/${name}.jpg" onerror="this.src='/game_uploads/images/${name}.jpeg'; this.onerror=null;" alt="${name}" class="w-full h-32 object-cover">
-            <div class="p-3 flex justify-between items-center">
-              <span class="font-semibold">${name}</span>
-              <button onclick="playGame('${file}')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">Play</button>
-            </div>
-          `;
-          grid.appendChild(tile);
+                const files = Array.from(doc.querySelectorAll("a"))
+                    .map(a => a.getAttribute("href"))
+                    .filter(f => f.endsWith(".html"));
+
+                const grid = document.getElementById("gamesGrid");
+                grid.innerHTML = "";
+
+                files.forEach(file => {
+                    const name = file.replace(".html", "");
+                    const imgFormats = ["jpg", "jpeg", "png"];
+                    let imgSrc = "";
+
+                    for (let ext of imgFormats) {
+                        const possible = `/game_uploads/images/${name}.${ext}`;
+                        imgSrc = possible;
+                    }
+
+                    const tile = document.createElement("div");
+                    tile.className = "bg-gray-800 rounded-xl shadow-lg overflow-hidden gameTile";
+                    tile.setAttribute("data-name", name.toLowerCase());
+
+                    tile.innerHTML = `
+                    <img src="/game_uploads/images/${name}.jpg" onerror="this.src='/game_uploads/images/${name}.jpeg'; this.onerror=null;" alt="${name}" class="w-full h-32 object-cover">
+                    <div class="p-3 flex justify-between items-center">
+                      <span class="font-semibold">${name}</span>
+                      <button onclick="playGame('${file}')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">Play</button>
+                    </div>
+                  `;
+                    grid.appendChild(tile);
+                });
+
+            } catch (err) {
+                console.error("Error loading games", err);
+            }
+        }
+
+        function playGame(file) {
+            const grid = document.getElementById("gamesGrid");
+            const noResults = document.getElementById("noResults");
+
+            // Use flex layout for full-screen iframe
+            grid.innerHTML = `
+                <div class="relative w-full h-[calc(100vh-64px)] flex flex-col">
+                  <button onclick="loadGames()" class="absolute top-4 left-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded z-20">← Back</button>
+                  <iframe src="/game_uploads/${file}" class="flex-1 w-full border-0"></iframe>
+                </div>
+              `;
+            noResults.classList.add("hidden");
+        }
+
+        document.getElementById("searchBar").addEventListener("input", function () {
+            const query = this.value.toLowerCase();
+            const tiles = document.querySelectorAll(".gameTile");
+            let visibleCount = 0;
+
+            tiles.forEach(tile => {
+                const name = tile.getAttribute("data-name");
+                if (name.includes(query)) {
+                    tile.style.display = "block";
+                    visibleCount++;
+                } else {
+                    tile.style.display = "none";
+                }
+            });
+
+            document.getElementById("noResults").classList.toggle("hidden", visibleCount > 0);
         });
 
-      } catch (err) {
-        console.error("Error loading games", err);
-      }
-    }
-
-    function playGame(file) {
-      const grid = document.getElementById("gamesGrid");
-      const noResults = document.getElementById("noResults");
-
-      // Use flex layout for full-screen iframe
-      grid.innerHTML = `
-        <div class="relative w-full h-[calc(100vh-64px)] flex flex-col">
-          <button onclick="loadGames()" class="absolute top-4 left-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded z-20">← Back</button>
-          <iframe src="/game_uploads/${file}" class="flex-1 w-full border-0"></iframe>
-        </div>
-      `;
-      noResults.classList.add("hidden");
-    }
-
-    document.getElementById("searchBar").addEventListener("input", function() {
-      const query = this.value.toLowerCase();
-      const tiles = document.querySelectorAll(".gameTile");
-      let visibleCount = 0;
-
-      tiles.forEach(tile => {
-        const name = tile.getAttribute("data-name");
-        if (name.includes(query)) {
-          tile.style.display = "block";
-          visibleCount++;
-        } else {
-          tile.style.display = "none";
-        }
-      });
-
-      document.getElementById("noResults").classList.toggle("hidden", visibleCount > 0);
-    });
-
-    loadGames();
-  </script>
+        loadGames();
+    </script>
 </body>
 </html>

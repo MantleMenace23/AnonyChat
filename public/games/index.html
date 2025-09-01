@@ -8,7 +8,7 @@
 <body class="bg-gray-900 text-white min-h-screen flex flex-col">
 
     <!-- Header -->
-    <header class="p-4 bg-gray-800 text-center text-2xl font-bold">
+    <header id="siteHeader" class="p-4 bg-gray-800 text-center text-2xl font-bold">
 
         <a href="anonychat.xyz"
            class="inline-block w-[200px] h-[50px] bg-gradient-to-r from-blue-400 to-blue-600 text-white rounded-lg hover:opacity-90 transition flex items-center justify-center">
@@ -27,7 +27,7 @@
     </div>
 
     <!-- Game Grid -->
-    <main class="grid grid-cols-2 md:grid-cols-4 gap-6 p-4" id="gamesGrid">
+    <main class="grid grid-cols-2 md:grid-cols-4 gap-6 p-4 flex-1" id="gamesGrid">
         <!-- JS inserts game tiles -->
     </main>
 
@@ -70,7 +70,8 @@
                     grid.appendChild(tile);
                 });
 
-                // Show search bar again
+                // Show header & search bar again
+                document.getElementById("siteHeader").classList.remove("hidden");
                 document.getElementById("searchWrapper").classList.remove("hidden");
                 document.getElementById("noResults").classList.add("hidden");
             } catch (err) {
@@ -82,8 +83,10 @@
             const grid = document.getElementById("gamesGrid");
             const searchWrapper = document.getElementById("searchWrapper");
             const noResults = document.getElementById("noResults");
+            const header = document.getElementById("siteHeader");
 
-            // Hide search bar while game is open
+            // Hide header + search while game is open
+            header.classList.add("hidden");
             searchWrapper.classList.add("hidden");
 
             grid.innerHTML = `

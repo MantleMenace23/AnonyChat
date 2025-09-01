@@ -9,12 +9,10 @@
 
     <!-- Header -->
     <header id="siteHeader" class="p-4 bg-gray-800 text-center text-2xl font-bold">
-
         <a href="anonychat.xyz"
            class="inline-block w-[200px] h-[50px] bg-gradient-to-r from-blue-400 to-blue-600 text-white rounded-lg hover:opacity-90 transition flex items-center justify-center">
             AnonyChat
         </a>
-
         Games
     </header>
 
@@ -27,7 +25,7 @@
     </div>
 
     <!-- Game Grid -->
-    <main class="grid grid-cols-2 md:grid-cols-4 gap-6 p-4 flex-1" id="gamesGrid">
+    <main class="grid grid-cols-2 md:grid-cols-4 gap-6 p-4" id="gamesGrid">
         <!-- JS inserts game tiles -->
     </main>
 
@@ -55,18 +53,18 @@
                     tile.setAttribute("data-name", name.toLowerCase());
 
                     tile.innerHTML = `
-                <img src="/game_uploads/images/${name}.jpg"
-                     onerror="this.src='/game_uploads/images/${name}.jpeg'; this.onerror=null;"
-                     alt="${name}"
-                     class="w-full h-32 object-cover">
-                <div class="p-3 flex justify-between items-center">
-                  <span class="font-semibold">${name}</span>
-                  <button onclick="playGame('${file}')"
-                          class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
-                    Play
-                  </button>
-                </div>
-              `;
+                        <img src="/game_uploads/images/${name}.jpg"
+                             onerror="this.src='/game_uploads/images/${name}.jpeg'; this.onerror=null;"
+                             alt="${name}"
+                             class="w-full h-32 object-cover">
+                        <div class="p-3 flex justify-between items-center">
+                          <span class="font-semibold">${name}</span>
+                          <button onclick="playGame('${file}')"
+                                  class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
+                            Play
+                          </button>
+                        </div>
+                    `;
                     grid.appendChild(tile);
                 });
 
@@ -90,15 +88,15 @@
             searchWrapper.classList.add("hidden");
 
             grid.innerHTML = `
-            <div class="relative w-screen h-screen">
-              <button onclick="loadGames()"
-                class="absolute top-4 left-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded z-20">
-                ← Back
-              </button>
-              <iframe src="/game_uploads/${file}"
-                      class="absolute top-0 left-0 w-screen h-screen border-0"></iframe>
-            </div>
-          `;
+                <div class="relative w-screen h-screen">
+                  <button onclick="loadGames()"
+                    class="absolute top-4 left-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded z-20">
+                    ← Back
+                  </button>
+                  <iframe src="/game_uploads/${file}"
+                          class="absolute top-0 left-0 w-screen h-screen border-0"></iframe>
+                </div>
+            `;
             noResults.classList.add("hidden");
         }
 

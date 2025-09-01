@@ -12,27 +12,80 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // --------------------
-// Chat server
+// Main Express App
 // --------------------
-const chatApp = express();
-const chatServer = http.createServer(chatApp);
-const io = new SocketIOServer(chatServer);
-const CHAT_PORT = process.env.CHAT_PORT || 3000;
+const app = express();
+const server = http.createServer(app);
+const io = new SocketIOServer(server);
+const PORT = process.env.PORT || 3000;
 
-// Serve chat static files
-chatApp.use(express.static(path.join(__dirname, "public/chat")));
-
-// Lobby route
-chatApp.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/chat/index.html"));
+// --------------------
+// Host detection middleware
+// --------------------
+app.use((req, res, next) => {
+  req.isChat = req.hostname === "anonychat.xyz" || req.hostname === "www.anonychat.xyz";
+  req.isGames = req.hostname === "games.anonychat.xyz";
+  next();
 });
 
-// Chat room route
-chatApp.get("/chat", (req, res) => {
+// --------------------
+// Serve static files
+// --------------------
+app.use((req, res, next) => {
+  if (req.isChat) {
+    express.static(path.join(__dirname, "public/chat"))(req, res, next);
+  } else if (req.isGames) {
+    express.static(path.join(__dirname, "public/games"))(req, res, next);
+  } else {
+    res.status(404).send("404 Not Found");
+  }
+});
+
+// --------------------
+// Chat routes (only for anonychat.xyz)
+// --------------------
+app.get("/", (req, res) => {
+  if (req.isChat) {
+    res.sendFile(path.join(__dirname, "public/chat/index.html"));
+  } else if (req.isGames) {
+    res.sendFile(path.join(__dirname, "public/games/index.html"));
+  } else {
+    res.status(404).send("404 Not Found");
+  }
+});
+
+app.get("/chat", (req, res) => {
+  if (!req.isChat) return res.status(404).send("404 Not Found");
   res.sendFile(path.join(__dirname, "public/chat/chat.html"));
 });
 
-// Socket.io chat logic
+// --------------------
+// Games API for file listing
+// --------------------
+app.get("/game_uploads", (req, res) => {
+  if (!req.isGames) return res.status(404).send("404 Not Found");
+
+  const gamesDir = path.join(__dirname, "public/games/game_uploads");
+  const imagesDir = path.join(gamesDir, "images");
+
+  try {
+    const files = fs.readdirSync(gamesDir).filter(f => f.endsWith(".html"));
+
+    let html = "<!DOCTYPE html><html><body><ul>";
+    files.forEach(file => {
+      html += `<li><a href="${file}">${file}</a></li>`;
+    });
+    html += "</ul></body></html>";
+
+    res.send(html);
+  } catch (err) {
+    res.status(500).send("Error reading games directory");
+  }
+});
+
+// --------------------
+// Socket.io logic (chat only)
+// --------------------
 const rooms = {};
 
 io.on("connection", (socket) => {
@@ -82,51 +135,11 @@ io.on("connection", (socket) => {
   });
 });
 
-// Catch-all for chat
-chatApp.use((req, res) => {
-  res.status(404).send("404 Not Found - Chat");
-});
-
-// Start chat server
-chatServer.listen(CHAT_PORT, () => {
-  console.log(`Chat server running on http://localhost:${CHAT_PORT}`);
-});
-
 // --------------------
-// Games server
+// Start server
 // --------------------
-const gamesApp = express();
-const GAMES_PORT = process.env.GAMES_PORT || 4000;
-
-// Serve everything in public/games at root
-gamesApp.use(express.static(path.join(__dirname, "public/games")));
-
-// API to list all games (matches your original working file-pulling logic)
-gamesApp.get("/game_uploads", (req, res) => {
-  const gamesDir = path.join(__dirname, "public/games/game_uploads");
-  const imagesDir = path.join(gamesDir, "images");
-
-  try {
-    const files = fs.readdirSync(gamesDir).filter(f => f.endsWith(".html"));
-
-    let html = "<!DOCTYPE html><html><body><ul>";
-    files.forEach(file => {
-      html += `<li><a href="${file}">${file}</a></li>`;
-    });
-    html += "</ul></body></html>";
-
-    res.send(html);
-  } catch (err) {
-    res.status(500).send("Error reading games directory");
-  }
-});
-
-// Catch-all for games
-gamesApp.use((req, res) => {
-  res.status(404).send("404 Not Found - Games");
-});
-
-// Start games server
-gamesApp.listen(GAMES_PORT, () => {
-  console.log(`Games server running on http://localhost:${GAMES_PORT}`);
+server.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Chat subdomain: anonychat.xyz -> / and /chat`);
+  console.log(`Games subdomain: games.anonychat.xyz -> / only`);
 });

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Games | Anonychat</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <title>Games | Anonychat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex flex-col">
 
@@ -18,11 +18,8 @@
         Games
     </header>
 
-
-
-
     <!-- Search -->
-    <div class="p-4">
+    <div class="p-4" id="searchWrapper">
         <input id="searchBar"
                type="text"
                placeholder="Search games..."
@@ -53,28 +50,29 @@
 
                 files.forEach(file => {
                     const name = file.replace(".html", "");
-                    const imgFormats = ["jpg", "jpeg", "png"];
-                    let imgSrc = "";
-
-                    for (let ext of imgFormats) {
-                        const possible = `/game_uploads/images/${name}.${ext}`;
-                        imgSrc = possible;
-                    }
-
                     const tile = document.createElement("div");
                     tile.className = "bg-gray-800 rounded-xl shadow-lg overflow-hidden gameTile";
                     tile.setAttribute("data-name", name.toLowerCase());
 
                     tile.innerHTML = `
-                    <img src="/game_uploads/images/${name}.jpg" onerror="this.src='/game_uploads/images/${name}.jpeg'; this.onerror=null;" alt="${name}" class="w-full h-32 object-cover">
-                    <div class="p-3 flex justify-between items-center">
-                      <span class="font-semibold">${name}</span>
-                      <button onclick="playGame('${file}')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">Play</button>
-                    </div>
-                  `;
+                <img src="/game_uploads/images/${name}.jpg"
+                     onerror="this.src='/game_uploads/images/${name}.jpeg'; this.onerror=null;"
+                     alt="${name}"
+                     class="w-full h-32 object-cover">
+                <div class="p-3 flex justify-between items-center">
+                  <span class="font-semibold">${name}</span>
+                  <button onclick="playGame('${file}')"
+                          class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
+                    Play
+                  </button>
+                </div>
+              `;
                     grid.appendChild(tile);
                 });
 
+                // Show search bar again
+                document.getElementById("searchWrapper").classList.remove("hidden");
+                document.getElementById("noResults").classList.add("hidden");
             } catch (err) {
                 console.error("Error loading games", err);
             }
@@ -82,15 +80,22 @@
 
         function playGame(file) {
             const grid = document.getElementById("gamesGrid");
+            const searchWrapper = document.getElementById("searchWrapper");
             const noResults = document.getElementById("noResults");
 
-            // Use flex layout for full-screen iframe
+            // Hide search bar while game is open
+            searchWrapper.classList.add("hidden");
+
             grid.innerHTML = `
-                <div class="relative w-full h-[calc(100vh-64px)] flex flex-col">
-                  <button onclick="loadGames()" class="absolute top-4 left-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded z-20">← Back</button>
-                  <iframe src="/game_uploads/${file}" class="flex-1 w-full border-0"></iframe>
-                </div>
-              `;
+            <div class="relative w-full h-screen">
+              <button onclick="loadGames()"
+                class="absolute top-4 left-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded z-20">
+                ← Back
+              </button>
+              <iframe src="/game_uploads/${file}"
+                      class="absolute top-0 left-0 w-full h-full border-0"></iframe>
+            </div>
+          `;
             noResults.classList.add("hidden");
         }
 

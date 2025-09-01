@@ -42,7 +42,7 @@ app.use((req, res, next) => {
 });
 
 // --------------------
-// Chat routes (only for anonychat.xyz)
+// Chat routes (anonychat.xyz only)
 // --------------------
 app.get("/", (req, res) => {
   if (req.isChat) {
@@ -54,13 +54,14 @@ app.get("/", (req, res) => {
   }
 });
 
+// Serve chat room at /chat only (no /room)
 app.get("/chat", (req, res) => {
   if (!req.isChat) return res.status(404).send("404 Not Found");
   res.sendFile(path.join(__dirname, "public/chat/chat.html"));
 });
 
 // --------------------
-// Games API for file listing
+// Games API for file listing (games.anonychat.xyz)
 // --------------------
 app.get("/game_uploads", (req, res) => {
   if (!req.isGames) return res.status(404).send("404 Not Found");

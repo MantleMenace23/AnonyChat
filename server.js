@@ -23,8 +23,8 @@ const PORT = process.env.PORT || 3000;
 // Host detection middleware
 // --------------------
 app.use((req, res, next) => {
-  req.isChat = req.hostname === "anonychat.xyz" || req.hostname === "www.anonychat.xyz";
-  req.isGames = req.hostname === "games.anonychat.xyz";
+  req.isChat = req.hostname === "lobby.eduspire.xyz" || req.hostname === "www.lobby.eduspire.xyz";
+  req.isGames = req.hostname === "games.eduspire.xyz";
   next();
 });
 
@@ -42,7 +42,7 @@ app.use((req, res, next) => {
 });
 
 // --------------------
-// Chat routes (anonychat.xyz only)
+// Chat routes (lobby.eduspire.xyz only)
 // --------------------
 app.get("/", (req, res) => {
   if (req.isChat) {
@@ -61,7 +61,7 @@ app.get(["/chat", "/chat/room"], (req, res) => {
 });
 
 // --------------------
-// Games API for file listing (games.anonychat.xyz)
+// Games API for file listing (games.eduspire.xyz)
 // --------------------
 app.get("/game_uploads", (req, res) => {
   if (!req.isGames) return res.status(404).send("404 Not Found");
@@ -141,6 +141,6 @@ io.on("connection", (socket) => {
 // --------------------
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Chat subdomain: anonychat.xyz -> / and /chat (also /chat/room for form submission)`);
-  console.log(`Games subdomain: games.anonychat.xyz -> / only`);
+  console.log(`Chat subdomain: lobby.eduspire.xyz -> / and /chat (also /chat/room for form submission)`);
+  console.log(`Games subdomain: games.eduspire.xyz -> / only`);
 });

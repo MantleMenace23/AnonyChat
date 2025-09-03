@@ -23,7 +23,7 @@ const PORT = process.env.PORT || 3000;
 // Host detection middleware
 // --------------------
 app.use((req, res, next) => {
-    req.isChat = req.hostname === "lobby.schooladminwebtesting.biz" || req.hostname === "www.lobby.eduspire.xyz";
+    req.isChat = req.hostname === "lobby.schooladminwebtesting.biz" || req.hostname === "www.lobby.schooladminwebtesting.biz";
     req.isGames = req.hostname === "games.schooladminwebtesting.biz";
   next();
 });

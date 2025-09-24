@@ -44,15 +44,6 @@ app.use((req, res, next) => {
 });
 
 // --------------------
-// IP logging: user opened site
-// --------------------
-app.use((req, res, next) => {
-    const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-    console.log(`User Opened Site: ${ip}`);
-    next();
-});
-
-// --------------------
 // Chat routes (lobby subdomain only)
 // --------------------
 app.get("/", (req, res) => {
@@ -110,6 +101,12 @@ io.on("connection", (socket) => {
     let currentRoom = null;
     let username = null;
 
+    const ip =
+        socket.handshake.headers["x-forwarded-for"] || socket.handshake.address;
+
+    // Log once when a new socket connects
+    console.log(`User Opened Site: ${ip}`);
+
     socket.on("joinRoom", ({ room, user }) => {
         if (!room || !user) return;
 
@@ -140,8 +137,6 @@ io.on("connection", (socket) => {
             fileData,
         });
     });
-
-    const ip = socket.handshake.headers["x-forwarded-for"] || socket.handshake.address;
 
     socket.on("disconnect", () => {
         console.log(`User Closed Site: ${ip}`);

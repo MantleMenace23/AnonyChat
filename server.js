@@ -52,7 +52,6 @@ app.use((req, res, next) => {
     next();
 });
 
-
 // --------------------
 // Chat routes (lobby subdomain only)
 // --------------------
@@ -146,10 +145,7 @@ io.on("connection", (socket) => {
 
     socket.on("disconnect", () => {
         console.log(`User Closed Site: ${ip}`);
-    // your existing disconnect logic continues below...
 
-
-    socket.on("disconnect", () => {
         if (currentRoom && rooms[currentRoom] && rooms[currentRoom][socket.id]) {
             const leavingUser = rooms[currentRoom][socket.id];
             delete rooms[currentRoom][socket.id];

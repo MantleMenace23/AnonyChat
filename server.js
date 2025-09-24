@@ -26,9 +26,7 @@ app.use((req, res, next) => {
     req.isChat =
         req.hostname === "lobby.anonychat.xyz" ||
         req.hostname === "www.lobby.anonychat.xyz";
-    req.isGames =
-        req.hostname === "games.anonychat.xyz" ||
-        req.hostname === "www.games.anonychat.xyz";
+    req.isGames = req.hostname === "games.anonychat.xyz";
     next();
 });
 
@@ -46,7 +44,7 @@ app.use((req, res, next) => {
 });
 
 // --------------------
-// Routes
+// Chat routes (lobby subdomain only)
 // --------------------
 app.get("/", (req, res) => {
     if (req.isChat) {
@@ -54,26 +52,30 @@ app.get("/", (req, res) => {
     } else if (req.isGames) {
         res.sendFile(path.join(__dirname, "public/games/index.html"));
     } else {
-        res.status(404).send("Not Found");
+        res.status(404).send("Main Not Found");
     }
 });
 
-// Lobby routes
-app.get(["/chat", "/chat/room"], (req, res) => {
+// Serve chat page at /chat
+app.get("/chat", (req, res) => {
     if (!req.isChat) return res.status(404).send("Chat Not Found");
     res.sendFile(path.join(__dirname, "public/chat/chat.html"));
 });
 
+// Serve about page at /about
 app.get("/about", (req, res) => {
     if (!req.isChat) return res.status(404).send("About Not Found");
     res.sendFile(path.join(__dirname, "public/chat/about.html"));
 });
 
-// Games API (games subdomain only)
+// --------------------
+// Games API for file listing (games subdomain only)
+// --------------------
 app.get("/game_uploads", (req, res) => {
     if (!req.isGames) return res.status(404).send("Game Files Not Found");
 
     const gamesDir = path.join(__dirname, "public/games/game_uploads");
+    const imagesDir = path.join(gamesDir, "images");
 
     try {
         const files = fs.readdirSync(gamesDir).filter((f) => f.endsWith(".html"));
@@ -151,6 +153,8 @@ io.on("connection", (socket) => {
 // --------------------
 server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
-    console.log(`Chat subdomain: lobby.anonychat.xyz -> /, /chat, /chat/room, /about`);
-    console.log(`Games subdomain: games.anonychat.xyz -> /, /game_uploads`);
+    console.log(
+        `Chat subdomain: lobby.anonychat.xyz -> /, /chat, /about`
+    );
+    console.log(`Games subdomain: games.anonychat.xyz -> / and /game_uploads`);
 });

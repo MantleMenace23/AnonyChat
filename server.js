@@ -24,8 +24,9 @@ const PORT = process.env.PORT || 3000;
 // --------------------
 app.use((req, res, next) => {
     req.isChat =
-        req.hostname === "lobby.anonychat.xyz" ||
-        req.hostname === "www.lobby.anonychat.xyz";
+        req.hostname === "anonychat.xyz" ||
+        req.hostname === "www.anonychat.xyz" ||
+        req.hostname === "lobby.anonychat.xyz";
     req.isGames = req.hostname === "games.anonychat.xyz";
     next();
 });
@@ -44,7 +45,7 @@ app.use((req, res, next) => {
 });
 
 // --------------------
-// Chat routes (lobby subdomain only)
+// Chat routes (main + lobby subdomain)
 // --------------------
 app.get("/", (req, res) => {
     if (req.isChat) {
@@ -75,7 +76,6 @@ app.get("/game_uploads", (req, res) => {
     if (!req.isGames) return res.status(404).send("Game Files Not Found");
 
     const gamesDir = path.join(__dirname, "public/games/game_uploads");
-    const imagesDir = path.join(gamesDir, "images");
 
     try {
         const files = fs.readdirSync(gamesDir).filter((f) => f.endsWith(".html"));
@@ -154,7 +154,7 @@ io.on("connection", (socket) => {
 server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(
-        `Chat subdomain: lobby.schooladminwebtesting.biz -> /, /chat, /chat/room, /about`
+        `Chat domain: anonychat.xyz (also lobby.anonychat.xyz) -> /, /chat, /chat/room, /about`
     );
-    console.log(`Games subdomain: games.schooladminwebtesting.biz -> / only`);
+    console.log(`Games subdomain: games.anonychat.xyz -> / only`);
 });

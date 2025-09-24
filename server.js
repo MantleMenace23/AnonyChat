@@ -52,19 +52,19 @@ app.get("/", (req, res) => {
     } else if (req.isGames) {
         res.sendFile(path.join(__dirname, "public/games/index.html"));
     } else {
-        res.status(404).send("Main Not Found");
+        res.status(404).send("404 Not Found");
     }
 });
 
-// Serve chat page at /chat
-app.get("/chat", (req, res) => {
-    if (!req.isChat) return res.status(404).send("Chat Not Found");
+// Serve chat page at /chat and /chat/room
+app.get(["/chat", "/chat/room"], (req, res) => {
+    if (!req.isChat) return res.status(404).send("404 Not Found");
     res.sendFile(path.join(__dirname, "public/chat/chat.html"));
 });
 
 // Serve about page at /about
 app.get("/about", (req, res) => {
-    if (!req.isChat) return res.status(404).send("About Not Found");
+    if (!req.isChat) return res.status(404).send("404 Not Found");
     res.sendFile(path.join(__dirname, "public/chat/about.html"));
 });
 
@@ -72,7 +72,7 @@ app.get("/about", (req, res) => {
 // Games API for file listing (games subdomain only)
 // --------------------
 app.get("/game_uploads", (req, res) => {
-    if (!req.isGames) return res.status(404).send("Game Files Not Found");
+    if (!req.isGames) return res.status(404).send("404 Not Found");
 
     const gamesDir = path.join(__dirname, "public/games/game_uploads");
     const imagesDir = path.join(gamesDir, "images");
@@ -154,7 +154,7 @@ io.on("connection", (socket) => {
 server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(
-        `Chat subdomain: lobby.anonychat.xyz -> /, /chat, /about`
+        `Chat subdomain: lobby.anonychat.xyz -> /, /chat, /chat/room, /about`
     );
-    console.log(`Games subdomain: games.anonychat.xyz -> / and /game_uploads`);
+    console.log(`Games subdomain: games.anonychat.xyz -> / only`);
 });

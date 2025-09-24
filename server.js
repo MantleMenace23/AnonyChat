@@ -44,6 +44,16 @@ app.use((req, res, next) => {
 });
 
 // --------------------
+// IP logging: user opened site
+// --------------------
+app.use((req, res, next) => {
+    const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+    console.log(`User Opened Site: ${ip}`);
+    next();
+});
+
+
+// --------------------
 // Chat routes (lobby subdomain only)
 // --------------------
 app.get("/", (req, res) => {
@@ -131,6 +141,13 @@ io.on("connection", (socket) => {
             fileData,
         });
     });
+
+    const ip = socket.handshake.headers["x-forwarded-for"] || socket.handshake.address;
+
+    socket.on("disconnect", () => {
+        console.log(`User Closed Site: ${ip}`);
+    // your existing disconnect logic continues below...
+
 
     socket.on("disconnect", () => {
         if (currentRoom && rooms[currentRoom] && rooms[currentRoom][socket.id]) {
